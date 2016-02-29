@@ -495,7 +495,12 @@ def lineify_path(polygon):
     last_node = polygon[0]
     for i in range(1, len(polygon)-1):
         node = polygon[i]
-        lines.append([last_node[0], last_node[1], node[0], node[1]])
+        line = [last_node[0], last_node[1], node[0], node[1]]
+        # don't add points
+        if (line[0] == line[2]) and (line[1] == line[3]):
+        	continue
+        else:
+			lines.append(line)
         last_node = node
     return lines
        
