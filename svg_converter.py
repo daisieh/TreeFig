@@ -17,6 +17,7 @@ max_y = 0
 min_x = 0
 min_y = 0
 otu_level = 0
+root_level = 0
 
 points = []
 
@@ -197,7 +198,7 @@ def main():
     svgdict['svg'] = {}
     svgdict['svg']['@width'] = xmldict['@width']
     svgdict['svg']['@height'] = xmldict['@height']
-    svgdict['svg']['g'] = [{'path':paths, 'line':lines, 'circle':circles, 'text':textdict}]
+    svgdict['svg']['g'] = [{'path':paths, 'line':lines, 'circle':circles},{'text':textdict}]
     
 
     outf = open(outfile+'_raw.svg','w')
@@ -286,7 +287,7 @@ def make_tree(segments):
         
     # okay, now we know what the nodes are. Match up the edges.
     edges = set()
-    otus = []
+    otus = set()
     nodes = set()
     for line in horiz_lines:
         x1 = line[0]
@@ -300,7 +301,7 @@ def make_tree(segments):
                 if y1 >= node[0] and y1 <= node[1]:
                     y1 = node[0]
             if x2 not in node_dict:
-                otus.append([x2, y2])
+                otus.add('%d %d' % (x2, y2))
             else:
                 for node in node_dict[x2]:
                     if y2 >= node[0] and y2 <= node[1]:
@@ -317,10 +318,13 @@ def make_tree(segments):
     for edge in edges:
         coords = re.split(' ',edge)
         final_edges.append([int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3])])
+    final_otus = []
+    for otu in otus:
+        coords = re.split(' ',otu)
+        final_otus.append([int(coords[0]), int(coords[1])])
+    final_otus.sort(cmp=lambda x,y: cmp(x[1], y[1]))
     
-    otus.sort(cmp=lambda x,y: cmp(x[1], y[1]))
-    
-    return (final_nodes, final_edges, otus)
+    return (final_nodes, final_edges, final_otus)
 
 def segments_to_lines(segments, color, width):
     lines = []
@@ -329,11 +333,9 @@ def segments_to_lines(segments, color, width):
     return lines
 
 def normalize_polygon_to_lines(polygon):    
-    global max_x, min_x
+    global max_x, min_x, root_level, otu_level
     lines = lineify_path(polygon)
 
-    root_level = max_x
-    otu_level = min_x
     horiz_line_set = set()
     vert_line_set = set()
     for line in lines:
@@ -352,11 +354,6 @@ def normalize_polygon_to_lines(polygon):
                 forward_line = (line[2],line[1],line[0],line[3])
             else:
                 horiz_line_set.add('%d %d %d %d' % forward_line)
-            
-            if (forward_line[0] < root_level):
-                root_level = forward_line[0]
-            if (forward_line[2] > otu_level):
-                otu_level = forward_line[2]
     
     # sort all the horiz lines by y-value:
     horiz_lines_list = []
@@ -438,6 +435,9 @@ def normalize_polygon_to_lines(polygon):
                             break
                     if my_nodeline is not None:
                         break
+            if my_nodeline is None:
+                # if x2 isn't running into a line, set it to otu_level
+                x2 = otu_level
         # if x1 is at root_level, we don't need to worry about that end.
         if x1 > root_level:    
             my_nodeline = None
@@ -456,9 +456,11 @@ def normalize_polygon_to_lines(polygon):
                     if my_nodeline is not None:
                         break
                     i += 1
-            line = [x1,y,x2,y]
+            if my_nodeline is None:
+                x1 = root_level
 
-        lines.append([x1, y, x2, y])
+        line = [x1,y,x2,y]
+        lines.append(line)
         
     return lines
 
@@ -607,11 +609,16 @@ def even_out_polygon(polygon):
     polygon.insert(0,polygon[len(polygon)-2])
     polygon.insert(0,polygon[len(polygon)-3])
 
-    global otu_level
     # find the maximum x-value
+    global otu_level, root_level, max_x, min_x
+    root_level = max_x
+    otu_level = min_x
+
     for node in polygon:
         if (node[x] > otu_level):
             otu_level = node[x]
+        if (node[x] < root_level):
+            root_level = node[x]
     
     global points
     points = []
