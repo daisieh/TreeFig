@@ -21,3 +21,8 @@ Run the script with the vectorized file as the argument:
 	```python svg_converter.py my_tree.svg```
 
 The output files include `my_tree_raw.svg`, which contains the intermediate steps used in the calculation (this is good for debugging), `my_tree.nex`, and `my_tree.nexml`.
+
+## Caveats:
+* As of Feb 28, 2016, the script only processes right-facing rectangular cladograms. 
+* It does not OCR the taxon names yet, but it does number them from the top down for easy matching later.
+* The script does not handle very short nodes well.
