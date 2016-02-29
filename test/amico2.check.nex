@@ -1,0 +1,5 @@
+#NEXUS
+begin TREES;
+Tree tree=
+(otu24, (otu23, (((((otu0, otu1), otu2, otu3), (otu6, otu5), otu4), (otu7, otu8)), ((otu21, otu22), (otu20, ((otu18, otu19), otu17)), ((otu15, otu16), ((otu13, otu14), (otu9, otu11, otu10, otu12)))))));
+End;

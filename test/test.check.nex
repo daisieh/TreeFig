@@ -1,0 +1,5 @@
+#NEXUS
+begin TREES;
+Tree tree=
+(otu0, otu1);
+End;
