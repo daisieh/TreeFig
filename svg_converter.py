@@ -337,6 +337,10 @@ def normalize_polygon_to_lines(polygon):
     horiz_line_set = set()
     vert_line_set = set()
     for line in lines:
+        # sanity check lines:
+        if (math.fabs(line[2]-line[0]) < 2) and (math.fabs(line[3]-line[1]) < 2):
+            print "hey, weird line %s" % line
+    
         forward_line = (line[0],line[1],line[2],line[3])
         if (line[0] == line[2]): # vertical lines
             if (line[1] < line[3]):
