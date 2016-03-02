@@ -68,6 +68,7 @@ def main():
     max_y = abs(max_y * scale_height)
     treepaths = []
     otherpaths = []
+    boxpaths = []
     for polygon in raw_polygons:
         polygon = scale(polygon, scale_width, scale_height)
         polygon = translate(polygon, 0, max_y)
@@ -84,7 +85,13 @@ def main():
             path['@style'] = "fill:#EEEEEE; stroke:#EEEEEE; stroke-width:1"
             paths.append(path) 
             otherpaths.append(path)
+            boxpaths.append(box)
 
+    for box in boxpaths:
+        path = {}
+        path['@d'] = nodes_to_path(box)
+        path['@style'] = "fill:#00DD00; stroke:#EEEEEE; stroke-width:1"
+        otherpaths.append(path)
     
     segments = []
     rawtreepaths = []   
