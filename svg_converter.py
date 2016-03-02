@@ -34,7 +34,8 @@ def main():
     f = open(filename, 'r')
     xmldict = ''
     xml = f.read()
-    xmldict = xmltodict.parse(xml)['svg']
+    xmldict = xmltodict.parse(xml, force_list=('path',))
+    xmldict = xmldict['svg']
     global total_width, total_height, scale_width, scale_height
     s = re.sub('[a-zA-Z]+', '', xmldict['@width'])
     total_width = float(s)
@@ -65,35 +66,39 @@ def main():
     global scale_width, scale_height
     max_x = abs(max_x * scale_width)
     max_y = abs(max_y * scale_height)
-    polygons = []
+    treepaths = []
+    otherpaths = []
     for polygon in raw_polygons:
         polygon = scale(polygon, scale_width, scale_height)
         polygon = translate(polygon, 0, max_y)
-        if threshold_area(bounding_box(polygon), 0.6):
+        box = bounding_box(polygon)
+        if threshold_area(box, 0.6):
             path = {}
             path['@d'] = nodes_to_path(polygon)
             path['@style'] = "fill:#CCCCCC; stroke:#999999; stroke-width:1"
-            paths.append(path) 
-            polygons.append(polygon)
+            otherpaths.append(path) 
+            treepaths.append(polygon)
         else:
             path = {}
             path['@d'] = nodes_to_path(polygon)
             path['@style'] = "fill:#EEEEEE; stroke:#EEEEEE; stroke-width:1"
-#             paths.append(path) 
+            paths.append(path) 
+            otherpaths.append(path)
 
-    segments = []   
-    polygon_total = []
-    for polygon in polygons:
-        polygon = straighten_polygon(polygon)
-        polygon = even_out_polygon(polygon)
+    
+    segments = []
+    rawtreepaths = []   
+    for treepath in treepaths:
+        treepath = straighten_polygon(treepath)
+        treepath = find_tree_tips(treepath)
         # this path is for the cleaned-up lines
         path = {}
-        path['@d'] = nodes_to_path(polygon)
+        path['@d'] = nodes_to_path(treepath)
         path['@name'] = "cleaned path"
         path['@style'] = "fill:none; stroke:#FF0000; stroke-width:1"
-        paths.append(path) 
+        rawtreepaths.append(path) 
 
-    segments.extend(normalize_polygon_to_lines(polygon))
+    segments.extend(polygon_to_lines(treepath))
     # generate raw svg first-pass, in case something fails during tree building:
     circles.extend(nodes_to_circles(points))
     lines = []
@@ -102,7 +107,7 @@ def main():
     svgdict['svg'] = {}
     svgdict['svg']['@width'] = xmldict['@width']
     svgdict['svg']['@height'] = xmldict['@height']
-    svgdict['svg']['g'] = [{'line':lines, 'path':paths, 'circle':circles}]
+    svgdict['svg']['g'] = [{'path':rawtreepaths},{'path':otherpaths},{'line':lines, 'circle':circles}]
 
     outf = open(outfile+'_raw.svg','w')
     outf.write(xmltodict.unparse(svgdict, pretty=True))
@@ -126,7 +131,6 @@ def main():
     for node in nodes:
         nodedict[str(node)] = 'node%d' % index
         index = index+1
-    
     nexmldict = {}
     nexmldict['nex:nexml'] = {'@xmlns:nex':'http://www.nexml.org/2009'}
     nexmldict['nex:nexml']['@xmlns']="http://www.nexml.org/2009"
@@ -198,7 +202,8 @@ def main():
     svgdict['svg'] = {}
     svgdict['svg']['@width'] = xmldict['@width']
     svgdict['svg']['@height'] = xmldict['@height']
-    svgdict['svg']['g'] = [{'path':paths, 'line':lines, 'circle':circles},{'text':textdict}]
+    svgdict['svg']['g'] = [{'path':otherpaths},{'path':rawtreepaths}]
+    svgdict['svg']['g'].extend([{'line':lines, 'circle':circles},{'text':textdict}])
     
 
     outf = open(outfile+'_raw.svg','w')
@@ -284,7 +289,7 @@ def make_tree(segments):
             y1 = line[1]
             y2 = line[3]
             node_dict[x].append([y1,y2])
-        
+    
     # okay, now we know what the nodes are. Match up the edges.
     edges = set()
     otus = set()
@@ -306,8 +311,8 @@ def make_tree(segments):
                 for node in node_dict[x2]:
                     if y2 >= node[0] and y2 <= node[1]:
                         y2 = node[0]
-                nodes.add('%d %d' % (x1, y1))
-                nodes.add('%d %d' % (x2, y2))
+            nodes.add('%d %d' % (x1, y1))
+            nodes.add('%d %d' % (x2, y2))
             edges.add('%d %d %d %d' % (x1, y1, x2, y2))
 
     final_nodes = []
@@ -323,7 +328,6 @@ def make_tree(segments):
         coords = re.split(' ',otu)
         final_otus.append([int(coords[0]), int(coords[1])])
     final_otus.sort(cmp=lambda x,y: cmp(x[1], y[1]))
-    
     return (final_nodes, final_edges, final_otus)
 
 def segments_to_lines(segments, color, width):
@@ -332,9 +336,24 @@ def segments_to_lines(segments, color, width):
         lines.append({'@x1':str(seg[0]), '@y1':str(seg[1]), '@x2':str(seg[2]), '@y2':str(seg[3]), '@stroke-width':str(width), '@stroke':color})
     return lines
 
-def normalize_polygon_to_lines(polygon):    
+def polygon_to_lines(polygon):   
+    # the first node in polygon is the upper-rightmost tip; append the corner preceding it so that we can process the tip correctly.
+    polygon.insert(0,polygon[len(polygon)-1])
+    polygon.insert(0,polygon[len(polygon)-2])
+
     global max_x, min_x, root_level, otu_level
-    lines = lineify_path(polygon)
+    lines = []
+    lines.append([polygon[len(polygon)-1][0], polygon[len(polygon)-1][1], polygon[0][0], polygon[0][1]])
+    last_node = polygon[0]
+    for i in range(1, len(polygon)-1):
+        node = polygon[i]
+        line = [last_node[0], last_node[1], node[0], node[1]]
+        # don't add zero-length lines
+        if (line[0] == line[2]) and (line[1] == line[3]):
+        	continue
+        else:
+			lines.append(line)
+        last_node = node
 
     horiz_line_set = set()
     vert_line_set = set()
@@ -435,9 +454,6 @@ def normalize_polygon_to_lines(polygon):
                             break
                     if my_nodeline is not None:
                         break
-            if my_nodeline is None:
-                # if x2 isn't running into a line, set it to otu_level
-                x2 = otu_level
         # if x1 is at root_level, we don't need to worry about that end.
         if x1 > root_level:    
             my_nodeline = None
@@ -479,34 +495,8 @@ def sort_lines(lines, key1, key2):
         bin_by_x1[bin].sort(cmp=lambda x,y: cmp(x[key2], y[key2]))
         final_lines.append(bin_by_x1[bin])
     return final_lines
-
-
-def lines_to_polygon(lines):
-    polygon = []
-    coord = lines[0].split(' ')
-    polygon.append([int(coord[0]),int(coord[1])])
-    for line in lines:
-        coord = line.split(' ')
-        polygon.append([int(coord[2]),int(coord[3])])
-    return polygon
-    
-
-def lineify_path(polygon):
-    lines = []
-    lines.append([polygon[len(polygon)-1][0], polygon[len(polygon)-1][1], polygon[0][0], polygon[0][1]])
-    last_node = polygon[0]
-    for i in range(1, len(polygon)-1):
-        node = polygon[i]
-        line = [last_node[0], last_node[1], node[0], node[1]]
-        # don't add points
-        if (line[0] == line[2]) and (line[1] == line[3]):
-        	continue
-        else:
-			lines.append(line)
-        last_node = node
-    return lines
        
-# remove all in-between singletons from a cleaned-up polygon
+# remove all in-between singletons from a polygon
 def straighten_polygon(polygon):
     # for convenience:
     x = 0
@@ -519,8 +509,7 @@ def straighten_polygon(polygon):
     new_polygon.insert(0,polygon.pop())
     new_polygon.append(polygon.pop(0))
     new_polygon.append(polygon.pop(0))
-    
-    tips = 0
+    tips = []
     
     while len(polygon) >= 0:
         node3 = new_polygon.pop()
@@ -555,7 +544,7 @@ def straighten_polygon(polygon):
         if ((node3[x] < node2[x]) and (node1[x] < node2[x])) or ((node3[x] > node2[x]) and (node1[x] > node2[x])):
             node1[y] = node2[y]
             node3[y] = node2[y]
-            tips += 1
+            tips.append(node2)
 
         #### SECOND: normalize knees
         # if node2[x] is between node1[x] and node3[x]
@@ -563,10 +552,14 @@ def straighten_polygon(polygon):
             theta = math.degrees(math.atan2(math.fabs((node3[y]-node2[y])),math.fabs((node3[x]-node2[x]))))
             if (node2[x]==node1[x]): # vertical, so snap node 3's x into line
                 if (theta >= 45): # theta == 90 means this is a straight knee
-                    node3[x] = node2[x]
-                    keep_node = False
-                    if (theta != 90):
-                        changes_made = True                
+                    # or a vertical tip?
+                    if ((node2[y] < node3[y]) and (node2[y] < node1[y])) or ((node2[y] > node3[y]) and (node2[y] > node1[y])):
+                        print "vertical tip %s, %f" % (str(node2),theta)  
+                    else:                      
+                        node3[x] = node2[x]
+                        keep_node = False
+                        if (theta != 90):
+                            changes_made = True                
             elif (node2[y]==node1[y]): #horizontal
                 if (theta <= 45): # theta == 0 means this is a straight knee
                     node3[y] = node2[y]
@@ -595,19 +588,24 @@ def straighten_polygon(polygon):
             break
         
         new_polygon.append(polygon.pop(0))
-    
+        
+    # find the upper-rightmost tip and rotate so it's the first point.
+    tips.sort(cmp=lambda x,y: cmp(x[1], y[1]))
+    new_polygon = rotate_polygon(new_polygon, tips[0])
+
     if changes_made:
         new_polygon = straighten_polygon(new_polygon)
 
     return new_polygon
     
-def even_out_polygon(polygon):
+def find_tree_tips(polygon):
     # for convenience:
     x = 0
     y = 1
-    polygon.insert(0,polygon[len(polygon)-1])
-    polygon.insert(0,polygon[len(polygon)-2])
-    polygon.insert(0,polygon[len(polygon)-3])
+
+    # the first node in the polygon is the upper-rightmost tip
+    
+    polygon.insert(0,polygon.pop())
 
     # find the maximum x-value
     global otu_level, root_level, max_x, min_x
@@ -625,12 +623,13 @@ def even_out_polygon(polygon):
     changes_made = False
     # we need to make sure we start with the last thing in polygon
     new_polygon = []
-    new_polygon.insert(0,polygon.pop())
+    new_polygon.append(polygon.pop())
     new_polygon.append(polygon.pop(0))
     new_polygon.append(polygon.pop(0))
     new_polygon.append(polygon.pop(0))
     new_polygon.append(polygon.pop(0))
-        
+    
+    tips = []    
     while len(polygon) >= 0:
         node4 = new_polygon.pop()
         node3 = new_polygon.pop()
@@ -644,14 +643,16 @@ def even_out_polygon(polygon):
             node0 = new_polygon.pop()
         else:
             node0 = polygon.pop()
-        
-
-        ### if node1[y] == node2[y] and node0[x] < node1[x] and node3[x] < node2[x]
+            
+        #### some tips might be blunted: make them pointy.
+        #     0 o---o 1
+        #           |
+        #     3 o---o 2
         if node1[x] == node2[x] and node0[x] < node1[x] and node3[x] < node2[x]:
             node2[y] = node1[y]
             node3[y] = node1[y]            
         
-        #### FIRST: normalize the tips
+        #### normalize the tips
         # if node2[x] is greater than either node1[x] or node3[x]
         if (node1[y] == node2[y]) and (node2[y] == node3[y]):
             if ((node3[x] < node2[x]) and (node1[x] < node2[x])):
@@ -660,9 +661,10 @@ def even_out_polygon(polygon):
                     new_x = node3[x]
                 node0 = [new_x, node0[y]]
                 node1 = [new_x, node2[y]]
-                node2 = [otu_level, node2[y]]
+
                 node3 = [new_x, node2[y]]
                 node4 = [new_x, node4[y]]
+                tips.append(node2)
 
         #### FINALLY: append nodes
         new_polygon.append(node0)
@@ -674,10 +676,20 @@ def even_out_polygon(polygon):
             break
         
         new_polygon.append(polygon.pop(0))
-    
+    # find the upper-rightmost tip and rotate so it's the first point.
+    tips.sort(cmp=lambda x,y: cmp(x[1], y[1]))
+    new_polygon = rotate_polygon(new_polygon, tips[0])
+
     return new_polygon
 
-
+def rotate_polygon(new_polygon, start_node):
+    i = 0
+    while new_polygon[i] != start_node:
+        i += 1
+    new_polygon_front = new_polygon[:i]
+    new_polygon_back = new_polygon[i:]
+    return new_polygon_back + new_polygon_front
+    
 
 def path_to_polygon(path):
     polygon = []
@@ -746,6 +758,6 @@ def bounding_box(polygon):
     min_x = min(x_points)
     min_y = min(y_points)
     return [[min_x, min_y],[min_x, max_y],[max_x, max_y],[max_x, min_y]]
-    
+
 if __name__ == '__main__':
     main()
