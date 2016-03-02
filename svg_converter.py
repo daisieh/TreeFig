@@ -127,18 +127,30 @@ def main():
     
     # process possible text labels:
     (otu_label_dict, branch_label_dict, other_label_dict) = define_text_boxes(boxpaths, nodes, segments, otus)
+    
     for key in otu_label_dict:
         box = otu_label_dict[key]
         path = {}
         path['@d'] = nodes_to_path(box)
         path['@style'] = "fill:none; stroke:#3333DD; stroke-width:1"
         otherpaths.append(path)
+
     for key in branch_label_dict:
         box = branch_label_dict[key]
         path = {}
         path['@d'] = nodes_to_path(box)
         path['@style'] = "fill:none; stroke:#33DD33; stroke-width:1"
         otherpaths.append(path)
+
+    for key in other_label_dict:
+        boxes = other_label_dict[key]
+        for box in boxes:
+            print box
+            path = {}
+            path['@d'] = nodes_to_path(box)
+            path['@style'] = "fill:#FFFF00; stroke:#33DD33; stroke-width:1"
+            otherpaths.append(path)
+
     
     # generate nexml:
     nodedict = {}
@@ -791,6 +803,7 @@ def define_text_boxes(boxpaths, nodes, segments, otus):
     branch_edges = []
     otu_label_dict = {}
     branch_label_dict = {}
+    unknown_label_dict = {'x':[]}
 
     # find edges that belong to otus:
     for edge in edges:
@@ -801,21 +814,11 @@ def define_text_boxes(boxpaths, nodes, segments, otus):
         else:
             branch_edges.append(edge)
             branch_label_dict['%d %d %d %d' % (edge[0],edge[1],edge[2],edge[3])] = []
-    otu_label_boxes = []
-    branch_label_boxes = []
 
     for box in boxpaths:
         [box_x1, box_y1] = box[0]
         [box_x2, box_y2] = box[2]
-        # if text occurs to the right of an otu_edge's x2, it's an otu_label
-        for edge in otu_edges:
-            [edge_x1, edge_y1, edge_x2, edge_y2] = edge
-            # extend the y-boundaries of the edge a little:
-            edge_y1 -= 2
-            edge_y2 += 2
-            if (box_y1 <= edge_y2) and (box_y2 >= edge_y1) and (box_x1 > edge_x2):
-                otu_label_dict['%d %d %d %d' % (edge[0],edge[1],edge[2],edge[3])].extend(box)
-            
+        marked = False
         # if text occurs above or below a branch_edge, it's a branch label
         for edge in branch_edges:
             [edge_x1, edge_y1, edge_x2, edge_y2] = edge
@@ -829,18 +832,33 @@ def define_text_boxes(boxpaths, nodes, segments, otus):
                 edge_y2 = edge[1] - 5
                 if (box_y1 <= edge_y2) and (box_y2 >= edge_y1):
                     branch_label_dict['%d %d %d %d' % (edge[0],edge[1],edge[2],edge[3])].extend(box)
+                    marked = True
                 # below the branch:
                 # extend the y-boundaries of the edge a little:
                 edge_y1 = edge[1] + 5
                 edge_y2 = edge[1] + 15
                 if (box_y1 <= edge_y2) and (box_y2 >= edge_y1):
                     branch_label_dict['%d %d %d %d' % (edge[0],edge[1],edge[2],edge[3])].extend(box)
+                    marked = True
+        
+        if marked == False:
+            # if text occurs to the right of an otu_edge's x2, it's an otu_label
+            for edge in otu_edges:
+                [edge_x1, edge_y1, edge_x2, edge_y2] = edge
+                # extend the y-boundaries of the edge a little:
+                edge_y1 -= 2
+                edge_y2 += 2
+                if (box_y1 <= edge_y2) and (box_y2 >= edge_y1) and (box_x1 > edge_x2):
+                    otu_label_dict['%d %d %d %d' % (edge[0],edge[1],edge[2],edge[3])].extend(box)
+                    marked = True
+        
+        if marked == False:
+            unknown_label_dict['x'].append(box)
     
     for edge in otu_label_dict.keys():
         if len(otu_label_dict[edge]) > 0:
             [x1,y1,x2,y2] = re.split(' ', edge)
             large_box = bounding_box(otu_label_dict[edge])
-            otu_label_boxes.append(large_box)
             otu_label_dict[str([int(x2),int(y2)])] = large_box
         otu_label_dict.pop(edge, None)
 
@@ -848,11 +866,10 @@ def define_text_boxes(boxpaths, nodes, segments, otus):
         if len(branch_label_dict[edge]) > 0:
             [x1,y1,x2,y2] = re.split(' ', edge)
             large_box = bounding_box(branch_label_dict[edge])
-            branch_label_boxes.append(large_box)
             branch_label_dict[str([int(x2),int(y2)])] = large_box
         branch_label_dict.pop(edge, None)
 
-    return (otu_label_dict, branch_label_dict, {})
+    return (otu_label_dict, branch_label_dict, unknown_label_dict)
 
 if __name__ == '__main__':
     main()
