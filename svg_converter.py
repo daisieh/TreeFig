@@ -125,6 +125,21 @@ def main():
     # make the raw tree for making nexml:
     (nodes, edges, otus) = make_tree(segments)
     
+    # process possible text labels:
+    (otu_label_dict, branch_label_dict, other_label_dict) = define_text_boxes(boxpaths, nodes, segments, otus)
+    for key in otu_label_dict:
+        box = otu_label_dict[key]
+        path = {}
+        path['@d'] = nodes_to_path(box)
+        path['@style'] = "fill:none; stroke:#3333DD; stroke-width:1"
+        otherpaths.append(path)
+    for key in branch_label_dict:
+        box = branch_label_dict[key]
+        path = {}
+        path['@d'] = nodes_to_path(box)
+        path['@style'] = "fill:none; stroke:#33DD33; stroke-width:1"
+        otherpaths.append(path)
+    
     # generate nexml:
     nodedict = {}
     otudict = {}
@@ -193,14 +208,13 @@ def main():
 
     textdict = {}
     textdict = []
+    
     # for each otu, add a text label:
-    for k in otudict.keys():
-        coordmatch = re.match('\[(\d+), (\d+)\]',k)
-        if coordmatch is not None:
-            x = coordmatch.group(1)
-            y = coordmatch.group(2)
-            textnode = {'@x':str(int(x) + 10), '@y':y,'@fill':'black','#text':otudict[k]}
-            textdict.append(textnode)
+    for k in otu_label_dict.keys():
+        x = otu_label_dict[k][0][0]
+        y = otu_label_dict[k][2][1]
+        textnode = {'@x':x, '@y':y,'@fill':'black','#text':otudict[k]}
+        textdict.append(textnode)
             
     # generate svg:
     circles.extend(nodes_to_circles(nodes))
@@ -765,6 +779,80 @@ def bounding_box(polygon):
     min_x = min(x_points)
     min_y = min(y_points)
     return [[min_x, min_y],[min_x, max_y],[max_x, max_y],[max_x, min_y]]
+
+def define_text_boxes(boxpaths, nodes, segments, otus):
+    edges = []
+    for seg in segments:
+        [x1, y1, x2, y2] = seg
+        if (y1 == y2):
+            edges.append(seg)
+            
+    otu_edges = []
+    branch_edges = []
+    otu_label_dict = {}
+    branch_label_dict = {}
+
+    # find edges that belong to otus:
+    for edge in edges:
+        [x1, y1, x2, y2] = edge
+        if [x2, y1] in otus:
+            otu_edges.append(edge)
+            otu_label_dict['%d %d %d %d' % (edge[0],edge[1],edge[2],edge[3])] = []
+        else:
+            branch_edges.append(edge)
+            branch_label_dict['%d %d %d %d' % (edge[0],edge[1],edge[2],edge[3])] = []
+    otu_label_boxes = []
+    branch_label_boxes = []
+
+    for box in boxpaths:
+        [box_x1, box_y1] = box[0]
+        [box_x2, box_y2] = box[2]
+        # if text occurs to the right of an otu_edge's x2, it's an otu_label
+        for edge in otu_edges:
+            [edge_x1, edge_y1, edge_x2, edge_y2] = edge
+            # extend the y-boundaries of the edge a little:
+            edge_y1 -= 2
+            edge_y2 += 2
+            if (box_y1 <= edge_y2) and (box_y2 >= edge_y1) and (box_x1 > edge_x2):
+                otu_label_dict['%d %d %d %d' % (edge[0],edge[1],edge[2],edge[3])].extend(box)
+            
+        # if text occurs above or below a branch_edge, it's a branch label
+        for edge in branch_edges:
+            [edge_x1, edge_y1, edge_x2, edge_y2] = edge
+            # sometimes labels are longer than the branch:
+            edge_x1 -= 10
+            edge_x2 += 10
+            if (box_x1 >= edge_x1) and (box_x2 <= edge_x2):
+                # above the branch:
+                # extend the y-boundaries of the edge a little:
+                edge_y1 = edge[1] - 15
+                edge_y2 = edge[1] - 5
+                if (box_y1 <= edge_y2) and (box_y2 >= edge_y1):
+                    branch_label_dict['%d %d %d %d' % (edge[0],edge[1],edge[2],edge[3])].extend(box)
+                # below the branch:
+                # extend the y-boundaries of the edge a little:
+                edge_y1 = edge[1] + 5
+                edge_y2 = edge[1] + 15
+                if (box_y1 <= edge_y2) and (box_y2 >= edge_y1):
+                    branch_label_dict['%d %d %d %d' % (edge[0],edge[1],edge[2],edge[3])].extend(box)
+    
+    for edge in otu_label_dict.keys():
+        if len(otu_label_dict[edge]) > 0:
+            [x1,y1,x2,y2] = re.split(' ', edge)
+            large_box = bounding_box(otu_label_dict[edge])
+            otu_label_boxes.append(large_box)
+            otu_label_dict[str([int(x2),int(y2)])] = large_box
+        otu_label_dict.pop(edge, None)
+
+    for edge in branch_label_dict.keys():
+        if len(branch_label_dict[edge]) > 0:
+            [x1,y1,x2,y2] = re.split(' ', edge)
+            large_box = bounding_box(branch_label_dict[edge])
+            branch_label_boxes.append(large_box)
+            branch_label_dict[str([int(x2),int(y2)])] = large_box
+        branch_label_dict.pop(edge, None)
+
+    return (otu_label_dict, branch_label_dict, {})
 
 if __name__ == '__main__':
     main()
