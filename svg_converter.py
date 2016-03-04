@@ -731,7 +731,21 @@ def path_to_polygon(path):
     for segment in parse_path(path):
         new_path.append(Line(segment.start, segment.end))
     new_path.closed = True
-    nodes = re.findall('[ML]\s*(\d+\.*\d*,\d+\.*\d*)\s*', new_path.d())
+    raw_path = new_path.d()
+    
+    # search for compound path bits and remove them
+    path_bits = re.findall('M.+?[ZM]', raw_path)
+    if len(path_bits) > 0:
+        raw_path = path_bits[0]
+        raw_path_size = len(re.findall(',',raw_path))
+        for bit in path_bits:
+            bit_size = len(re.findall(',',bit))
+            if bit_size > raw_path_size:
+                raw_path = bit
+                raw_path_size = bit_size
+    
+    # convert to simple list of nodes
+    nodes = re.findall('[ML]\s*(\d+\.*\d*,\d+\.*\d*)\s*', raw_path)
     for n in nodes:
         coords = n.split(',')
         if max_x < int(coords[0]):
