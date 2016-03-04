@@ -690,7 +690,7 @@ def find_tree_tips(polygon):
         if (node1[y] == node2[y]) and (node2[y] == node3[y]):
             if ((node3[x] < node2[x]) and (node1[x] < node2[x])):
                 new_x = node1[x]
-                if (node3[x] > node1[x]):
+                if (node3[x] < node1[x]):
                     new_x = node3[x]
                 node0 = [new_x, node0[y]]
                 node1 = [new_x, node2[y]]
