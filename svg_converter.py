@@ -8,6 +8,8 @@ import os
 import math
 from svg.path import Path, Line, Arc, CubicBezier, QuadraticBezier, parse_path
 
+from dendropy import Tree, TaxonNamespace
+
 total_width = 0
 total_height = 0
 scale_width = 1.0
@@ -123,9 +125,17 @@ def main():
     
     print "printed raw svg"
     
-    # make the raw tree for making nexml:
+    # make the raw tree:
     (nodes, edges, otus) = make_tree(segments)
+    newick_tree = tree_to_nexus(otus, nodes, edges) + ';'
+    dendro_tree = Tree.get(data=newick_tree, schema="newick")
     
+    # generate nexus:
+    dendro_tree.write(path=(outfile+'.nex'), schema="nexus")
+    
+    # generate nexml:
+    dendro_tree.write(path=(outfile+'.xml'), schema="nexml")
+            
     # process possible text labels:
     (otu_label_dict, branch_label_dict, other_label_dict) = define_text_boxes(boxpaths, nodes, segments, otus)
     
@@ -151,76 +161,16 @@ def main():
             path['@style'] = "fill:#FFFF00; stroke:#33DD33; stroke-width:1"
             otherpaths.append(path)
 
+        
+    textdict = {}
+    textdict = []
     
-    # generate nexml:
-    nodedict = {}
     otudict = {}
     index = 1
     for otu in otus:
         otudict[str(otu)] = 'otu%d' % index
         index = index+1
 
-    index = 1  
-    for node in nodes:
-        nodedict[str(node)] = 'node%d' % index
-        index = index+1
-    nexmldict = {}
-    nexmldict['nex:nexml'] = {'@xmlns:nex':'http://www.nexml.org/2009'}
-    nexmldict['nex:nexml']['@xmlns']="http://www.nexml.org/2009"
-    nexmldict['nex:nexml']['@xmlns:rdf']="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-    nexmldict['nex:nexml']['@xmlns:xsd']="http://www.w3.org/2001/XMLSchema#"
-    nexmldict['nex:nexml']['@xmlns:xsi']="http://www.w3.org/2001/XMLSchema-instance" 
-    nexmldict['nex:nexml']['@version'] = '0.9'
-    nexmldict['nex:nexml']['otus'] = {'@about':'#otus', '@id':'otus','@label':'taxa'}
-    nexmldict['nex:nexml']['otus']['otu'] = []
-    for otu in otus:
-        nexml_otu = {'@id':otudict[str(otu)]}
-        nexml_otu['@about'] = '#%s' % otudict[str(otu)]
-        nexml_otu['@label'] = otudict[str(otu)]
-        nexmldict['nex:nexml']['otus']['otu'].append(nexml_otu)
-    
-    nexmldict['nex:nexml']['trees']= {'@about':'#trees1','@id':'trees1','@label':'trees','@otus':'otus'}
-    currtree = {'@id':'tree1', '@about':'#tree1', '@label':'tree', '@xsi:type':'nex:FloatTree'}
-    nexmldict['nex:nexml']['trees']['tree'] = [currtree]
-    currtree['node'] = []
-    for node in nodes:
-#         print node
-        nexml_node = {'@id':nodedict[str(node)]}
-        if str(node) in otudict:
-            nexml_node['@otu'] = otudict[str(node)]
-        
-        currtree['node'].append(nexml_node)   
-
-    nexmldict['nex:nexml']['trees']['edge'] = []
-    index = 1
-    currtree['edge'] = []
-    for edge in edges:
-        nexml_edge = {}
-        nexml_edge['@id'] = 'edge%d' % index
-        nexml_edge['@length'] = str(edge[2]-edge[0])
-        nexml_edge['@source'] = nodedict[str([edge[0],edge[1]])]
-        nexml_edge['@target'] = nodedict[str([edge[2],edge[3]])]
-        currtree['edge'].append(nexml_edge)  
-        index = index+1 
-
-    outf = open(outfile+'.xml','w')
-    outf.write(xmltodict.unparse(nexmldict, pretty=True))
-    outf.close()
-    
-    # generate nexus:
-    nexus_str = "#NEXUS\n"
-    nexus_str += "begin TREES;\n"
-    nexus_str += "Tree tree=\n"
-    nexus_str += tree_to_nexus(otus, nodes, edges)
-    nexus_str += ";\nEnd;\n"
-    
-    outf = open(outfile+'.nex','w')
-    outf.write(nexus_str)
-    outf.close()
-                
-
-    textdict = {}
-    textdict = []
     
     # for each otu, add a text label:
     for k in otu_label_dict.keys():
