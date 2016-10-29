@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nex:nexml xmlns:nex="http://www.nexml.org/2009" xmlns="http://www.nexml.org/2009" xmlns:msq="http://mesquiteproject.org#" xmlns:tss="http://mesquiteproject.org/tss#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:xsd="http://www.w3.org/2001/XMLSchema#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" generator="org.nexml.model.impl.DocumentImpl" version="0.9">
+  <otus about="#otus1" id="otus1" label="Taxa">
+      <meta content="otus7727" datatype="xsd:string" id="meta2" property="msq:taxaUID" xsi:type="nex:LiteralMeta"/>
+    <otu about="#otu3" id="otu3" label="taxon 1">
+      <meta content="outgroup" datatype="xsd:string" id="meta4" property="tss:taxon" xsi:type="nex:LiteralMeta"/>
+    </otu>
+    <otu about="#otu8" id="otu8" label="taxon 2">
+      <meta content="1" datatype="xsd:integer" id="meta9" property="msq:taxonUID" xsi:type="nex:LiteralMeta"/>
+    </otu>
+    <otu about="#otu13" id="otu13" label="taxon 3">
+      <meta content="2" datatype="xsd:integer" id="meta14" property="msq:taxonUID" xsi:type="nex:LiteralMeta"/>
+    </otu>
+    <otu about="#otu18" id="otu18" label="taxon 4">
+      <meta content="3" datatype="xsd:integer" id="meta19" property="msq:taxonUID" xsi:type="nex:LiteralMeta"/>
+    </otu>
+    <otu about="#otu23" id="otu23" label="taxon 5">
+      <meta content="4" datatype="xsd:integer" id="meta24" property="msq:taxonUID" xsi:type="nex:LiteralMeta"/>
+    </otu>
+  </otus>
+  <trees about="#trees36" id="trees36" label="Trees from &quot;simplest_tree.nex&quot;" otus="otus1">
+
+    <tree about="#tree37" id="tree37" label="test_tree" xsi:type="nex:FloatTree">
+      <node id="node38" label="howdy"/>
+      <node id="node39" label="hello"/>
+      <node id="node41" label="taxon 2" otu="otu8"/>
+      <node id="node43" label="taxon 1" otu="otu3"/>
+      <node id="node45" label="taxon 3" otu="otu13"/>
+      <edge id="edge40" length="1.0" source="node38" target="node39"/>
+      <edge id="edge42" length="1.0" source="node39" target="node41"/>
+      <edge id="edge44" length="1.0" source="node39" target="node43"/>
+      <edge id="edge46" length="2.0" source="node38" target="node45"/>
+    </tree>
+  </trees>
+</nex:nexml>
