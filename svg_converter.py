@@ -34,6 +34,7 @@ def main():
     f = open(filename, 'r')
     xmldict = ''
     xml = f.read()
+    f.close()
     xmldict = xmltodict.parse(xml, force_list=('path',))
     xmldict = xmldict['svg']
     global total_width, total_height, scale_width, scale_height
@@ -114,7 +115,7 @@ def main():
     svgdict['svg'] = {}
     svgdict['svg']['@width'] = xmldict['@width']
     svgdict['svg']['@height'] = xmldict['@height']
-    svgdict['svg']['g'] = [{'path':rawtreepaths},{'path':otherpaths},{'line':lines, 'circle':circles}]
+    svgdict['svg']['g'] = [{'path':rawtreepaths},{'line':lines, 'circle':circles}]
 
     outf = open(outfile+'_raw.svg','w')
     outf.write(xmltodict.unparse(svgdict, pretty=True))
@@ -145,7 +146,6 @@ def main():
     for key in other_label_dict:
         boxes = other_label_dict[key]
         for box in boxes:
-            print box
             path = {}
             path['@d'] = nodes_to_path(box)
             path['@style'] = "fill:#FFFF00; stroke:#33DD33; stroke-width:1"
@@ -160,7 +160,6 @@ def main():
         otudict[str(otu)] = 'otu%d' % index
         index = index+1
 
-    nodes.extend(otus)
     index = 1  
     for node in nodes:
         nodedict[str(node)] = 'node%d' % index
@@ -185,9 +184,11 @@ def main():
     nexmldict['nex:nexml']['trees']['tree'] = [currtree]
     currtree['node'] = []
     for node in nodes:
+#         print node
         nexml_node = {'@id':nodedict[str(node)]}
         if str(node) in otudict:
             nexml_node['@otu'] = otudict[str(node)]
+        
         currtree['node'].append(nexml_node)   
 
     nexmldict['nex:nexml']['trees']['edge'] = []
@@ -229,20 +230,23 @@ def main():
         textdict.append(textnode)
             
     # generate svg:
+    nodes.extend(otus)
     circles.extend(nodes_to_circles(nodes))
     lines.extend(segments_to_lines(edges, "green", 3))
+    # print lines
     svgdict = {}
     svgdict['svg'] = {}
     svgdict['svg']['@width'] = xmldict['@width']
     svgdict['svg']['@height'] = xmldict['@height']
-    svgdict['svg']['g'] = [{'path':otherpaths},{'path':rawtreepaths}]
+    svgdict['svg']['g'] = [{'path':otherpaths}]
+    svgdict['svg']['g'].extend([{'path':rawtreepaths}])
     svgdict['svg']['g'].extend([{'line':lines, 'circle':circles},{'text':textdict}])
     
 
-    outf = open(outfile+'_raw.svg','w')
-    outf.write(xmltodict.unparse(svgdict, pretty=True))
-    outf.close()
-    print "reprinted raw svg"
+#     outf = open(outfile+'_raw.svg','w')
+#     outf.write(xmltodict.unparse(svgdict, pretty=True))
+#     outf.close()
+#     print "reprinted raw svg"
 
 def tree_to_nexus(otus, nodes, edges):
     otudict = {}
@@ -374,7 +378,8 @@ def polygon_to_lines(polygon):
     polygon.insert(0,polygon[len(polygon)-1])
     polygon.insert(0,polygon[len(polygon)-2])
 
-    global max_x, min_x, root_level, otu_level
+    global max_x, min_x, root_level, otu_level, points
+    points = []
     lines = []
     lines.append([polygon[len(polygon)-1][0], polygon[len(polygon)-1][1], polygon[0][0], polygon[0][1]])
     last_node = polygon[0]
@@ -462,55 +467,107 @@ def polygon_to_lines(polygon):
         new_bin.append(curr_node)
         vert_lines_binned[i] = new_bin
         
+    # straighten out the horizontal lines:
+    horiz_lines = []
+    node_lines = []
+    changes_made = True
+    while changes_made:
+        # print "hi"
+        changes_made = False
+        fix_bin = []
+        for line in horiz_line_set:
+            coord = line.split(' ')
+            x1 = int(coord[0])
+            y = int(coord[1])
+            x2 = int(coord[2])
+
+            # if x2 is at otu_level, we don't need to worry about that end.
+            if x2 < otu_level:        
+                my_nodeline = None
+                i = 0
+                while i < len(vert_lines_binned):
+                    bin = vert_lines_binned[i]
+                    if len(bin) == 0:
+                        i += 1
+                        continue
+#                     print "%s %s" % (line, str(bin[0]))
+                    if x2 > bin[0][0]:
+                        i += 1
+                        continue
+                    else:
+                        for nodeline in bin:
+                            if (nodeline[3] < y) and (y < nodeline[1]):
+                                my_nodeline = nodeline
+                                x2 = nodeline[0]
+                                break
+                            elif y == nodeline[1]:
+                                bin.remove(nodeline)
+                                x2 = vert_lines_binned[i-1][0][0]
+                                horiz_line_set.remove(line)
+                                horiz_line_set.add('%d %d %d %d' % (x1, y, x2, y))
+                                my_nodeline = nodeline
+                                changes_made = True
+                                break
+                            elif (y == nodeline[3]):
+                                # this is a problematic nodeline: 
+                                # edges shouldn't lead into the corner of a node.
+                                # print "%s removing %s" % (str([x2,y]),nodeline)
+                                x2 = vert_lines_binned[i-1][0][0]
+                                horiz_line_set.remove(line)
+                                horiz_line_set.add('%d %d %d %d' % (x1, y, x2, y))
+                                nodeline[3] = (nodeline[3] - nodeline[1]) + nodeline[3] -5
+                                # print "nodeline is now %s" % str(nodeline)
+                                my_nodeline = nodeline
+                                changes_made = True
+                                break
+                        if my_nodeline is not None:
+                            node_lines.append(my_nodeline)
+                            break
+                        i += 1
+            # if x1 is at root_level, we don't need to worry about that end.
+            if x1 > root_level and not changes_made:    
+                my_nodeline = None
+                i = 0
+                while i < len(vert_lines_binned):
+                    bin = vert_lines_binned[i]
+                    if len(bin) == 0:
+                        i += 1
+                        continue
+#                     print "%s %s" % (str([x1,y]), str(bin[0]))
+                    if (x1 > bin[0][0]):
+                        i += 1
+                        continue
+                    else:                    
+                        for nodeline in vert_lines_binned[i]:
+                            if (nodeline[3] < y) and (y < nodeline[1]):
+                                my_nodeline = nodeline
+                                x1 = nodeline[0]
+                                break
+                            elif (y == nodeline[1]):
+#                                 print "%s modifying %s" % (str([x1,y]),nodeline)
+                                x1 = nodeline[0]
+                                my_nodeline = nodeline
+                                break
+                            elif y == nodeline[3]:
+                                points.append([x1,y])
+                                # print "%s touches %s" % (str([x1,y]),nodeline)
+                                my_nodeline = nodeline
+                                x1 = nodeline[0]
+                                break
+                        if my_nodeline is not None:
+                            node_lines.append(my_nodeline)
+                            i += 1
+                            break
+                    if my_nodeline is None:
+                        x1 = root_level
+                    i += 1
+            line = [x1,y,x2,y]
+            horiz_lines.append(line)
     lines = []
-    for bin in vert_lines_binned:
-        for line in bin:
+    for line in node_lines:
             lines.append([line[0],line[3],line[2],line[1]])
     
-    for line in horiz_line_set:
-        coord = line.split(' ')
-        x1 = int(coord[0])
-        y = int(coord[1])
-        x2 = int(coord[2])
-
-        # if x2 is at otu_level, we don't need to worry about that end.
-        if x2 < otu_level:        
-            my_nodeline = None
-            for bin in vert_lines_binned:
-                if x2 > bin[0][0]:
-                    continue
-                else:
-                    for nodeline in bin:
-                        if (nodeline[3] <= y) and (y <= nodeline[1]):
-                            my_nodeline = nodeline
-                            x2 = nodeline[0]
-                            break
-                    if my_nodeline is not None:
-                        break
-        # if x1 is at root_level, we don't need to worry about that end.
-        if x1 > root_level:    
-            my_nodeline = None
-            i = 0
-            while i < len(vert_lines_binned):
-                bin = vert_lines_binned[i]
-                if (x1 > bin[0][0]):
-                    i += 1
-                    continue
-                else:                    
-                    for nodeline in vert_lines_binned[i]:
-                        if (nodeline[3] <= y) and (y <= nodeline[1]):
-                            my_nodeline = nodeline
-                            x1 = nodeline[0]
-                            break
-                    if my_nodeline is not None:
-                        break
-                    i += 1
-            if my_nodeline is None:
-                x1 = root_level
-
-        line = [x1,y,x2,y]
-        lines.append(line)
-        
+    lines.extend(horiz_lines)
     return lines
 
 def sort_lines(lines, key1, key2):
@@ -574,7 +631,7 @@ def straighten_polygon(polygon):
         
         #### FIRST: normalize the tips
         # if node2[x] is greater than either node1[x] or node3[x]
-        if ((node3[x] < node2[x]) and (node1[x] < node2[x])) or ((node3[x] > node2[x]) and (node1[x] > node2[x])):
+        if ((node3[x] < node2[x]) and (node1[x] < node2[x])):# or ((node3[x] > node2[x]) and (node1[x] > node2[x])):
             node1[y] = node2[y]
             node3[y] = node2[y]
             tips.append(node2)
@@ -587,7 +644,8 @@ def straighten_polygon(polygon):
                 if (theta >= 45): # theta == 90 means this is a straight knee
                     # or a vertical tip?
                     if ((node2[y] < node3[y]) and (node2[y] < node1[y])) or ((node2[y] > node3[y]) and (node2[y] > node1[y])):
-                        print "vertical tip %s, %f" % (str(node2),theta)  
+                        # print "vertical tip %s, %f" % (str(node2),theta)  
+                        points.append(node2)
                     else:                      
                         node3[x] = node2[x]
                         keep_node = False
@@ -612,6 +670,8 @@ def straighten_polygon(polygon):
                         node1[y] = node2[y]
                         if (theta != 0):
                             changes_made = True
+                else:
+                    keep_node = False
         #### FINALLY: append nodes, without node2 if it's a straight knee
         new_polygon.append(node1)
         if keep_node:
@@ -624,6 +684,7 @@ def straighten_polygon(polygon):
         
     # find the upper-rightmost tip and rotate so it's the first point.
     tips.sort(cmp=lambda x,y: cmp(x[1], y[1]))
+    # print str(tips)
     new_polygon = rotate_polygon(new_polygon, tips[0])
 
     if changes_made:
@@ -637,6 +698,8 @@ def find_tree_tips(polygon):
     y = 1
 
     # the first node in the polygon is the upper-rightmost tip
+    global points
+    points = []
     
     polygon.insert(0,polygon.pop())
 
@@ -651,9 +714,6 @@ def find_tree_tips(polygon):
         if (node[x] < root_level):
             root_level = node[x]
     
-    global points
-    points = []
-    changes_made = False
     # we need to make sure we start with the last thing in polygon
     new_polygon = []
     new_polygon.append(polygon.pop())
