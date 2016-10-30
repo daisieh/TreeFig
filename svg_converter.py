@@ -558,119 +558,90 @@ def set_otu_and_root_level(polygon):
 
 # remove all in-between singletons from a polygon
 def straighten_polygon(polygon):
+    print "straightening polygon"
+    polygon = rotate_polygon(polygon)
+    remove_duplicate_points(polygon)
+    changes_made = False
     # for convenience:
     x = 0
     y = 1
     global points
     points = []
-    changes_made = False
-    # we need to make sure we start with the last thing in polygon
-    new_polygon = []
-    new_polygon.insert(0,polygon.pop())
-    new_polygon.append(polygon.pop(0))
-    new_polygon.append(polygon.pop(0))
-    tips = []
-    
-    while len(polygon) >= 0:
-        node3 = new_polygon.pop()
-        node2 = new_polygon.pop()
-
-        if len(new_polygon) > 0:
-            node1 = new_polygon.pop()
-        else:
-            node1 = polygon.pop()
+    wraparound = 5
+    # add a few redundant points to make sure we wrap around the polygon:
+    polygon.extend(polygon[0:wraparound-1])
+#     print "starting as: %s " % str(polygon)
+    start_node = polygon[0]
+    index = 2
+    while (polygon[index] != start_node):
+        nodes = polygon[index-2:index+3]
+        print "looking at %s" % str(nodes)
+        # are 0,1,2 in a (basically) straight line?
+        # is 1 a tip between 0 and 2?
+        is_straight = False
+        is_right = False
+        is_vert_tip = False
+        is_tip = False
+        if (nodes[0][x] == nodes[1][x]): # if first two are vertical:
+            if (nodes[2][x] == nodes[1][x]):
+                # vertical line
+                is_straight = True
+            elif (nodes[2][y] == nodes[1][y]):
+                # right angle
+                is_right = True
+        elif (nodes[0][y] == nodes[1][y]): # if first two are horizontal:
+            if (nodes[2][y] == nodes[1][y]):
+                # horiz line
+                is_straight = True
+            elif (nodes[2][x] == nodes[1][x]):
+                # right angle
+                is_right = True
+            elif (nodes[2][x] < nodes[1][x]) and (nodes[0][x] < nodes[1][x]):
+                # tip
+                is_tip = True
+        elif (nodes[1][x] == nodes[2][x]): # if second two are vertical:
+            if (nodes[0][x] == nodes[1][x]):
+                # vertical line
+                is_straight = True
+            elif (nodes[0][y] == nodes[1][y]):
+                # right angle
+                is_right = True
+        elif (nodes[2][y] == nodes[1][y]): # if second two are horizontal:
+            if (nodes[0][y] == nodes[1][y]):
+                # horiz line
+                is_straight = True
+            elif (nodes[0][x] == nodes[1][x]):
+                # right angle
+                is_right = True
         
-        keep_node = True
-
-        #### Remove duplicate or near-dup points.
-        # if node1 and node2 are peculiarly close together on the y-axis, we should drop node 2 and try again:
-        if (node1[x] == node2[x]):
-            if ((node2[y] - 2 <= node1[y]) and (node1[y] <= node2[y] + 2)) or ((node1[y] - 2 <= node2[y]) and (node2[y] <= node1[y] + 2)):
-                polygon.insert(0,node3)
-                new_polygon.append(node1)
-                new_polygon.append(polygon.pop(0))
-                continue
-        
-        if (node2[y] != node1[y]) and (node2[x] != node1[x]):
-            if (math.fabs(node2[y] - node1[y]) <= 2): # so small that angles can't detect them
-                node1[y] = node2[y] 
-                changes_made = True
-            if (math.fabs(node2[x] - node1[x]) <= 2): # so small that angles can't detect them
-                node1[x] = node2[x] 
-                changes_made = True
-        
-        #### FIRST: normalize the tips
-        # if node2[x] is greater than either node1[x] or node3[x]
-        if ((node3[x] < node2[x]) and (node1[x] < node2[x])):# or ((node3[x] > node2[x]) and (node1[x] > node2[x])):
-            node1[y] = node2[y]
-            node3[y] = node2[y]
-            tips.append(node2)
-
-        #### SECOND: normalize knees
-        # if node2[x] is between node1[x] and node3[x]
-        if ((node1[x] <= node2[x]) and (node2[x] <= node3[x])) or ((node3[x] <= node2[x]) and (node2[x] <= node1[x])):
-            theta = math.degrees(math.atan2(math.fabs((node3[y]-node2[y])),math.fabs((node3[x]-node2[x]))))
-            if (node2[x]==node1[x]): # vertical, so snap node 3's x into line
-                if (theta >= 45): # theta == 90 means this is a straight knee
-                    # or a vertical tip?
-                    if ((node2[y] < node3[y]) and (node2[y] < node1[y])) or ((node2[y] > node3[y]) and (node2[y] > node1[y])):
-                        # print "vertical tip %s, %f" % (str(node2),theta)  
-                        points.append(node2)
-                    else:                      
-                        node3[x] = node2[x]
-                        keep_node = False
-                        if (theta != 90):
-                            changes_made = True                
-            elif (node2[y]==node1[y]): #horizontal
-                if (theta <= 45): # theta == 0 means this is a straight knee
-                    node3[y] = node2[y]
-                    keep_node = False
-                    if (theta != 0):
-                        changes_made = True
+        # or their angle is really flat
+        if is_straight == False and is_right == False:
+            res = ""
+            if (nodes[1][x]-nodes[0][x]) == 0:
+                theta = (math.pi/2) + math.atan(math.fabs((nodes[2][y]-nodes[1][y])/(nodes[2][x]-nodes[1][x])))
+                res = "1"
+            elif (nodes[2][x]-nodes[1][x]) == 0:
+                res = "2"
+                theta = (math.pi/2) + math.atan(math.fabs((nodes[1][y]-nodes[0][y])/(nodes[1][x]-nodes[0][x])))
             else:
-                # calculate an angle between n1 and n2:
-                theta = math.degrees(math.atan2(math.fabs((node1[y]-node2[y])),math.fabs((node1[x]-node2[x]))))
-                if (node3[x] == node2[x]): # vertical, so snap node 3's x into line
-                    if (theta >= 45): # theta == 90 means this is a straight knee
-                        node1[x] = node2[x]
-                        if (theta != 90):
-                            changes_made = True
-                elif (node2[y]==node3[y]): #horizontal
-                    if (theta <= 45): # theta == 0 means this is a straight knee
-                        node1[y] = node2[y]
-                        if (theta != 0):
-                            changes_made = True
-                else:
-                    keep_node = False
-        #### FINALLY: append nodes, without node2 if it's a straight knee
-        new_polygon.append(node1)
-        if keep_node:
-            new_polygon.append(node2)
-        new_polygon.append(node3)
-        if len(polygon) == 0:
-            break
-        
-        new_polygon.append(polygon.pop(0))
-        
-    # find the upper-rightmost tip and rotate so it's the first point.
-    tips.sort(cmp=lambda x,y: cmp(x[1], y[1]))
-    # print str(tips)
-    new_polygon = rotate_polygon(new_polygon, tips[0])
-    remove_duplicate_points(new_polygon)
+                res = "3"
+                theta = math.pi - math.atan(math.fabs((nodes[1][y]-nodes[0][y])/(nodes[1][x]-nodes[0][x]))) - math.atan(math.fabs((nodes[2][y]-nodes[1][y])/(nodes[2][x]-nodes[1][x])))
+                if (math.pi - theta) < 0.7:
+    #                 res = res + " basically straight"
+                    is_straight = True
+#                 elif (math.fabs((math.pi/2) - theta) < 0.1):
+#                     res = res + " basically straight"
+# #                     is_straight = True
+#             print "looking at %s" % str(nodes)
+            print "theta is %f: %s" % (math.degrees(theta), res)
+        if is_straight and not is_tip:
+            # remove node 1, don't increment:
+            print "removing node %s" % str(nodes[1])
+            index = index - 1
+            polygon.pop(index)
+            changes_made = True
 
-    if changes_made:
-        new_polygon = straighten_polygon(new_polygon)
-
-    return new_polygon
-    
-def remove_duplicate_points(polygon):
-    index = 0
-    while index < (len(polygon)-2):
-        nodeA = polygon[index]
-        nodeB = polygon[index+1]
-        if (nodeA[0] == nodeB[0]) and (nodeA[1] == nodeB[1]):
-            polygon.pop(index+1)
-            print "removed %s" % (str(nodeB))
+        # end loop by incrementing index
         index = index + 1
     
     trim_polygon(polygon)
