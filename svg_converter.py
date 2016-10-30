@@ -100,7 +100,7 @@ def main():
     rawtreepaths = []
     rawpolygons = []   
     for treepath in treepaths:
-        treepath = straighten_polygon(treepath)
+        straighten_polygon(treepath)
 #         treepath = find_tree_tips(treepath)
         treepath = find_otus(treepath)
         
@@ -559,7 +559,7 @@ def set_otu_and_root_level(polygon):
 # remove all in-between singletons from a polygon
 def straighten_polygon(polygon):
     print "straightening polygon"
-    polygon = rotate_polygon(polygon)
+    rotate_polygon(polygon)
     remove_duplicate_points(polygon)
     changes_made = False
     # for convenience:
@@ -645,11 +645,11 @@ def straighten_polygon(polygon):
         index = index + 1
     
     trim_polygon(polygon)
-    polygon = rotate_polygon(polygon)
+    rotate_polygon(polygon)
     if changes_made:
         straighten_polygon(polygon)
     print "ending as: %s " % str(polygon)
-    return polygon
+    return
     
 def find_tree_tips(polygon):
     # for convenience:
@@ -727,21 +727,22 @@ def find_tree_tips(polygon):
     return new_polygon
 
 # rotate the polygon so that it starts at the smallest x,y node
-def rotate_polygon(new_polygon):
-    smallest_node = new_polygon[0]
+def rotate_polygon(polygon):
+    smallest_node = polygon[0]
     smallest_index = 0
     i = 1
-    while (i < len(new_polygon)):
-        if new_polygon[i] < smallest_node:
-            smallest_node = new_polygon[i]
+    while (i < len(polygon)):
+        if polygon[i] < smallest_node:
+            smallest_node = polygon[i]
             smallest_index = i
         i = i + 1
     print "smallest node is %s" % str(smallest_node)
-    new_polygon_front = new_polygon[:smallest_index]
-    new_polygon_back = new_polygon[smallest_index:]
-    new_polygon = new_polygon_back + new_polygon_front
-    return new_polygon
-    
+        
+    # add front half to the end of the list
+    polygon.extend(polygon[:smallest_index])
+    # delete the first half of the list
+    del polygon[:smallest_index]
+        
 def remove_duplicate_points(polygon):
     index = 0
     while index < (len(polygon)-2):
