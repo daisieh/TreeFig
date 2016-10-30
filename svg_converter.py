@@ -101,6 +101,8 @@ def main():
     for treepath in treepaths:
         treepath = straighten_polygon(treepath)
         treepath = find_tree_tips(treepath)
+        treepath = find_otus(treepath)
+        
         # this path is for the cleaned-up lines
         path = {}
         path['@d'] = nodes_to_path(treepath)
@@ -162,8 +164,6 @@ def main():
             otherpaths.append(path)
 
         
-    textdict = {}
-    textdict = []
     
     otudict = {}
     index = 1
@@ -171,7 +171,7 @@ def main():
         otudict[str(otu)] = 'otu%d' % index
         index = index+1
 
-    
+    textdict = []
     # for each otu, add a text label:
     for k in otu_label_dict.keys():
         x = otu_label_dict[k][0][0]
@@ -636,12 +636,75 @@ def straighten_polygon(polygon):
     tips.sort(cmp=lambda x,y: cmp(x[1], y[1]))
     # print str(tips)
     new_polygon = rotate_polygon(new_polygon, tips[0])
+    remove_duplicate_points(new_polygon)
 
     if changes_made:
         new_polygon = straighten_polygon(new_polygon)
 
     return new_polygon
     
+def remove_duplicate_points(polygon):
+    index = 0
+    while index < (len(polygon)-2):
+        nodeA = polygon[index]
+        nodeB = polygon[index+1]
+        if (nodeA[0] == nodeB[0]) and (nodeA[1] == nodeB[1]):
+            polygon.pop(index+1)
+            print "removed %s" % (str(nodeB))
+        index = index + 1
+        
+
+
+def find_otus(polygon):
+    # for convenience:
+    x = 0
+    y = 1
+    print polygon
+
+    # the first node in the polygon is the upper-rightmost tip
+    global points
+    points = []
+    polygon.insert(0,polygon[len(polygon)-1])
+
+    # find the maximum x-value
+    global otu_level, root_level, max_x, min_x
+    root_level = max_x
+    otu_level = min_x
+
+    for node in polygon:
+        if (node[x] > otu_level):
+            otu_level = node[x]
+        if (node[x] < root_level):
+            root_level = node[x]
+    
+    # we need to make sure we start with the last thing in polygon
+    new_polygon = []
+    new_polygon.append(polygon.pop())
+    new_polygon.append(polygon.pop(0))
+    new_polygon.append(polygon.pop(0))
+
+    while len(polygon) >= 0:
+        node2 = new_polygon.pop()
+        node1 = new_polygon.pop()
+        node0 = new_polygon.pop()
+
+        if (node1[x] > node2[x]) and (node1[x] > node0[x]):
+            points.append(node1)
+            print node1
+
+        #### FINALLY: append nodes
+        new_polygon.append(node0)
+        new_polygon.append(node1)
+        new_polygon.append(node2)
+        if len(polygon) == 0:
+            break
+        
+        new_polygon.append(polygon.pop(0))
+    new_polygon.pop(0)
+    print new_polygon
+    return new_polygon
+
+
 def find_tree_tips(polygon):
     # for convenience:
     x = 0
@@ -649,7 +712,7 @@ def find_tree_tips(polygon):
 
     # the first node in the polygon is the upper-rightmost tip
     global points
-    points = []
+#     points = []
     
     polygon.insert(0,polygon.pop())
 
@@ -722,7 +785,7 @@ def find_tree_tips(polygon):
     # find the upper-rightmost tip and rotate so it's the first point.
     tips.sort(cmp=lambda x,y: cmp(x[1], y[1]))
     new_polygon = rotate_polygon(new_polygon, tips[0])
-
+    remove_duplicate_points(new_polygon)
     return new_polygon
 
 def rotate_polygon(new_polygon, start_node):
