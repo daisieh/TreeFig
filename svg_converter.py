@@ -580,7 +580,6 @@ def straighten_polygon(polygon):
         # is 1 a tip between 0 and 2?
         is_straight = False
         is_right = False
-        is_vert_tip = False
         is_tip = False
         if (nodes[0][x] == nodes[1][x]): # if first two are vertical:
             if (nodes[2][x] == nodes[1][x]):
@@ -617,23 +616,24 @@ def straighten_polygon(polygon):
         # or their angle is really flat
         if is_straight == False and is_right == False:
             res = ""
-            if (nodes[1][x]-nodes[0][x]) == 0:
-                theta = (math.pi/2) + math.atan(math.fabs((nodes[2][y]-nodes[1][y])/(nodes[2][x]-nodes[1][x])))
-                res = "1"
-            elif (nodes[2][x]-nodes[1][x]) == 0:
-                res = "2"
-                theta = (math.pi/2) + math.atan(math.fabs((nodes[1][y]-nodes[0][y])/(nodes[1][x]-nodes[0][x])))
-            else:
-                res = "3"
-                theta = math.pi - math.atan(math.fabs((nodes[1][y]-nodes[0][y])/(nodes[1][x]-nodes[0][x]))) - math.atan(math.fabs((nodes[2][y]-nodes[1][y])/(nodes[2][x]-nodes[1][x])))
-                if (math.pi - theta) < 0.7:
-    #                 res = res + " basically straight"
-                    is_straight = True
-#                 elif (math.fabs((math.pi/2) - theta) < 0.1):
-#                     res = res + " basically straight"
-# #                     is_straight = True
-#             print "looking at %s" % str(nodes)
+            # law of cosines:
+            # we want the angle internal to node1.
+            # if a, b, c are the lengths of sides of the triangle described by nodes 0,1,2
+            # the angle of node1 is acos((a^2 + b^2 - c^2)/(2*a*b))
+            # alternatively, if we keep the squares, acos((a2 + b2 - c2)/(2*sqrt(a2*b2)))
+            # a,b,c can be solved with the Pythagorean Theorem:
+            a2 = ((nodes[1][x]-nodes[0][x]) * (nodes[1][x]-nodes[0][x])) + ((nodes[1][y]-nodes[0][y]) * (nodes[1][y]-nodes[0][y]))
+            b2 = ((nodes[1][x]-nodes[2][x]) * (nodes[1][x]-nodes[2][x])) + ((nodes[1][y]-nodes[2][y]) * (nodes[1][y]-nodes[2][y]))
+            c2 = ((nodes[2][x]-nodes[0][x]) * (nodes[2][x]-nodes[0][x])) + ((nodes[2][y]-nodes[0][y]) * (nodes[2][y]-nodes[0][y]))
+            
+            theta = math.acos((a2 + b2 - c2)/(2*math.sqrt(a2*b2)))
+            
+            if 180 - math.degrees(theta) < 45:
+                is_straight = True
+                res = "basically straight"
+            
             print "theta is %f: %s" % (math.degrees(theta), res)
+            
         if is_straight and not is_tip:
             # remove node 1, don't increment:
             print "removing node %s" % str(nodes[1])
@@ -646,9 +646,9 @@ def straighten_polygon(polygon):
     
     trim_polygon(polygon)
     polygon = rotate_polygon(polygon)
-#     if changes_made:
-#         straighten_polygon(polygon)
-#     print "ending as: %s " % str(polygon)
+    if changes_made:
+        straighten_polygon(polygon)
+    print "ending as: %s " % str(polygon)
     return polygon
     
 def find_tree_tips(polygon):
