@@ -576,40 +576,38 @@ def straighten_polygon(polygon):
     while (polygon[index] != start_node):
         nodes = polygon[index-2:index+3]
         print "looking at %s" % str(nodes)
-        # are 0,1,2 in a (basically) straight line?
-        # is 1 a tip between 0 and 2?
         is_straight = False
         is_right = False
         is_tip = False
-        if (nodes[0][x] == nodes[1][x]): # if first two are vertical:
-            if (nodes[2][x] == nodes[1][x]):
+        if (nodes[1][x] == nodes[2][x]): # if first two are vertical:
+            if (nodes[3][x] == nodes[2][x]):
                 # vertical line
                 is_straight = True
-            elif (nodes[2][y] == nodes[1][y]):
+            elif (nodes[3][y] == nodes[2][y]):
                 # right angle
                 is_right = True
-        elif (nodes[0][y] == nodes[1][y]): # if first two are horizontal:
-            if (nodes[2][y] == nodes[1][y]):
+        elif (nodes[1][y] == nodes[2][y]): # if first two are horizontal:
+            if (nodes[3][y] == nodes[2][y]):
                 # horiz line
                 is_straight = True
-            elif (nodes[2][x] == nodes[1][x]):
+            elif (nodes[3][x] == nodes[2][x]):
                 # right angle
                 is_right = True
-            elif (nodes[2][x] < nodes[1][x]) and (nodes[0][x] < nodes[1][x]):
+            elif (nodes[3][x] < nodes[2][x]) and (nodes[1][x] < nodes[2][x]):
                 # tip
                 is_tip = True
-        elif (nodes[1][x] == nodes[2][x]): # if second two are vertical:
-            if (nodes[0][x] == nodes[1][x]):
+        elif (nodes[2][x] == nodes[3][x]): # if second two are vertical:
+            if (nodes[1][x] == nodes[2][x]):
                 # vertical line
                 is_straight = True
-            elif (nodes[0][y] == nodes[1][y]):
+            elif (nodes[1][y] == nodes[2][y]):
                 # right angle
                 is_right = True
-        elif (nodes[2][y] == nodes[1][y]): # if second two are horizontal:
-            if (nodes[0][y] == nodes[1][y]):
+        elif (nodes[3][y] == nodes[2][y]): # if second two are horizontal:
+            if (nodes[1][y] == nodes[2][y]):
                 # horiz line
                 is_straight = True
-            elif (nodes[0][x] == nodes[1][x]):
+            elif (nodes[1][x] == nodes[2][x]):
                 # right angle
                 is_right = True
         
@@ -618,13 +616,13 @@ def straighten_polygon(polygon):
             res = ""
             # law of cosines:
             # we want the angle internal to node1.
-            # if a, b, c are the lengths of sides of the triangle described by nodes 0,1,2
+            # if a, b, c are the lengths of sides of the triangle described by nodes 1,2,3
             # the angle of node1 is acos((a^2 + b^2 - c^2)/(2*a*b))
             # alternatively, if we keep the squares, acos((a2 + b2 - c2)/(2*sqrt(a2*b2)))
             # a,b,c can be solved with the Pythagorean Theorem:
-            a2 = ((nodes[1][x]-nodes[0][x]) * (nodes[1][x]-nodes[0][x])) + ((nodes[1][y]-nodes[0][y]) * (nodes[1][y]-nodes[0][y]))
-            b2 = ((nodes[1][x]-nodes[2][x]) * (nodes[1][x]-nodes[2][x])) + ((nodes[1][y]-nodes[2][y]) * (nodes[1][y]-nodes[2][y]))
-            c2 = ((nodes[2][x]-nodes[0][x]) * (nodes[2][x]-nodes[0][x])) + ((nodes[2][y]-nodes[0][y]) * (nodes[2][y]-nodes[0][y]))
+            a2 = ((nodes[2][x]-nodes[1][x]) * (nodes[2][x]-nodes[1][x])) + ((nodes[2][y]-nodes[1][y]) * (nodes[2][y]-nodes[1][y]))
+            b2 = ((nodes[2][x]-nodes[3][x]) * (nodes[2][x]-nodes[3][x])) + ((nodes[2][y]-nodes[3][y]) * (nodes[2][y]-nodes[3][y]))
+            c2 = ((nodes[3][x]-nodes[1][x]) * (nodes[3][x]-nodes[1][x])) + ((nodes[3][y]-nodes[1][y]) * (nodes[3][y]-nodes[1][y]))
             
             theta = math.acos((a2 + b2 - c2)/(2*math.sqrt(a2*b2)))
             
@@ -635,10 +633,10 @@ def straighten_polygon(polygon):
             print "theta is %f: %s" % (math.degrees(theta), res)
             
         if is_straight and not is_tip:
-            # remove node 1, don't increment:
-            print "removing node %s" % str(nodes[1])
-            index = index - 1
+            # remove node 2 (which is polygon[index]), don't increment:
+            print "removing node %s" % str(nodes[2])
             polygon.pop(index)
+            index = index - 1
             changes_made = True
 
         # end loop by incrementing index
@@ -648,7 +646,7 @@ def straighten_polygon(polygon):
     rotate_polygon(polygon)
     if changes_made:
         straighten_polygon(polygon)
-    print "ending as: %s " % str(polygon)
+#     print "ending as: %s " % str(polygon)
     return
     
 def find_tree_tips(polygon):
