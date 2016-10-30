@@ -574,8 +574,12 @@ def straighten_polygon(polygon):
     start_node = polygon[0]
     index = 2
     while (polygon[index] != start_node):
+        # we're looking at an array of nodes: nodes[2] is equivalent to polygon[index]
         nodes = polygon[index-2:index+3]
         print "looking at %s" % str(nodes)
+        
+        remove_index_node = False
+        
         is_straight = False
         is_right = False
         is_tip = False
@@ -611,8 +615,9 @@ def straighten_polygon(polygon):
                 # right angle
                 is_right = True
         
-        # or their angle is really flat
-        if is_straight == False and is_right == False:
+        if is_straight or is_right or is_tip:
+            remove_index_node = False
+        else: 
             res = ""
             # law of cosines:
             # we want the angle internal to node1.
@@ -625,14 +630,14 @@ def straighten_polygon(polygon):
             c2 = ((nodes[3][x]-nodes[1][x]) * (nodes[3][x]-nodes[1][x])) + ((nodes[3][y]-nodes[1][y]) * (nodes[3][y]-nodes[1][y]))
             
             theta = math.acos((a2 + b2 - c2)/(2*math.sqrt(a2*b2)))
-            
+            # is their angle really flat
             if 180 - math.degrees(theta) < 45:
-                is_straight = True
+                remove_index_node = True
                 res = "basically straight"
             
             print "theta is %f: %s" % (math.degrees(theta), res)
             
-        if is_straight and not is_tip:
+        if remove_index_node:
             # remove node 2 (which is polygon[index]), don't increment:
             print "removing node %s" % str(nodes[2])
             polygon.pop(index)
