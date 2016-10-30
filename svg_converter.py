@@ -90,17 +90,18 @@ def main():
             otherpaths.append(path)
             boxpaths.append(box)
 
-    for box in boxpaths:
-        path = {}
-        path['@d'] = nodes_to_path(box)
-        path['@style'] = "fill:#00DD00; stroke:#EEEEEE; stroke-width:1"
-        otherpaths.append(path)
+#     for box in boxpaths:
+#         path = {}
+#         path['@d'] = nodes_to_path(box)
+#         path['@style'] = "fill:#00DD00; stroke:#EEEEEE; stroke-width:1"
+#         otherpaths.append(path)
     
     segments = []
-    rawtreepaths = []   
+    rawtreepaths = []
+    rawpolygons = []   
     for treepath in treepaths:
         treepath = straighten_polygon(treepath)
-        treepath = find_tree_tips(treepath)
+#         treepath = find_tree_tips(treepath)
         treepath = find_otus(treepath)
         
         # this path is for the cleaned-up lines
@@ -119,7 +120,12 @@ def main():
     svgdict['svg'] = {}
     svgdict['svg']['@width'] = xmldict['@width']
     svgdict['svg']['@height'] = xmldict['@height']
-    svgdict['svg']['g'] = [{'path':rawtreepaths},{'line':lines, 'circle':circles}]
+    svgdict['svg']['g'] = []
+#     svgdict['svg']['g'].extend([{'line':lines}])
+    svgdict['svg']['g'].extend([{'circle':circles}])
+    svgdict['svg']['g'].extend([{'path':otherpaths}])
+    svgdict['svg']['g'].extend([{'path':rawtreepaths}])
+
 
     outf = open(outfile+'_raw.svg','w')
     outf.write(xmltodict.unparse(svgdict, pretty=True))
@@ -328,8 +334,10 @@ def polygon_to_lines(polygon):
     polygon.insert(0,polygon[len(polygon)-1])
     polygon.insert(0,polygon[len(polygon)-2])
 
-    global max_x, min_x, root_level, otu_level, points
-    points = []
+    global max_x, min_x, points
+    
+    (root_level, otu_level) = set_otu_and_root_level(polygon)
+#     points = []
     lines = []
     lines.append([polygon[len(polygon)-1][0], polygon[len(polygon)-1][1], polygon[0][0], polygon[0][1]])
     last_node = polygon[0]
@@ -422,7 +430,6 @@ def polygon_to_lines(polygon):
     node_lines = []
     changes_made = True
     while changes_made:
-        # print "hi"
         changes_made = False
         fix_bin = []
         for line in horiz_line_set:
@@ -499,7 +506,7 @@ def polygon_to_lines(polygon):
                                 my_nodeline = nodeline
                                 break
                             elif y == nodeline[3]:
-                                points.append([x1,y])
+#                                 points.append([x1,y])
                                 # print "%s touches %s" % (str([x1,y]),nodeline)
                                 my_nodeline = nodeline
                                 x1 = nodeline[0]
@@ -536,6 +543,19 @@ def sort_lines(lines, key1, key2):
         final_lines.append(bin_by_x1[bin])
     return final_lines
        
+def set_otu_and_root_level(polygon):
+    # find the maximum x-value
+    global otu_level, root_level, max_x, min_x
+    root_level = max_x
+    otu_level = min_x
+
+    for node in polygon:
+        if (node[0] > otu_level):
+            otu_level = node[0]
+        if (node[0] < root_level):
+            root_level = node[0]
+    return (otu_level, root_level)
+
 # remove all in-between singletons from a polygon
 def straighten_polygon(polygon):
     # for convenience:
@@ -652,59 +672,14 @@ def remove_duplicate_points(polygon):
             polygon.pop(index+1)
             print "removed %s" % (str(nodeB))
         index = index + 1
-        
-
-
-def find_otus(polygon):
-    # for convenience:
-    x = 0
-    y = 1
-    print polygon
-
-    # the first node in the polygon is the upper-rightmost tip
-    global points
-    points = []
-    polygon.insert(0,polygon[len(polygon)-1])
-
-    # find the maximum x-value
-    global otu_level, root_level, max_x, min_x
-    root_level = max_x
-    otu_level = min_x
-
-    for node in polygon:
-        if (node[x] > otu_level):
-            otu_level = node[x]
-        if (node[x] < root_level):
-            root_level = node[x]
     
-    # we need to make sure we start with the last thing in polygon
-    new_polygon = []
-    new_polygon.append(polygon.pop())
-    new_polygon.append(polygon.pop(0))
-    new_polygon.append(polygon.pop(0))
-
-    while len(polygon) >= 0:
-        node2 = new_polygon.pop()
-        node1 = new_polygon.pop()
-        node0 = new_polygon.pop()
-
-        if (node1[x] > node2[x]) and (node1[x] > node0[x]):
-            points.append(node1)
-            print node1
-
-        #### FINALLY: append nodes
-        new_polygon.append(node0)
-        new_polygon.append(node1)
-        new_polygon.append(node2)
-        if len(polygon) == 0:
-            break
-        
-        new_polygon.append(polygon.pop(0))
-    new_polygon.pop(0)
-    print new_polygon
-    return new_polygon
-
-
+    trim_polygon(polygon)
+    polygon = rotate_polygon(polygon)
+#     if changes_made:
+#         straighten_polygon(polygon)
+#     print "ending as: %s " % str(polygon)
+    return polygon
+    
 def find_tree_tips(polygon):
     # for convenience:
     x = 0
@@ -713,29 +688,22 @@ def find_tree_tips(polygon):
     # the first node in the polygon is the upper-rightmost tip
     global points
 #     points = []
-    
-    polygon.insert(0,polygon.pop())
+    print(polygon)
+    print len(polygon)
+#     polygon.insert(0,polygon.pop())
 
-    # find the maximum x-value
-    global otu_level, root_level, max_x, min_x
-    root_level = max_x
-    otu_level = min_x
+    # add a few redundant points to make sure we wrap around the polygon:
+    polygon.extend(polygon[0:3])
+    print(polygon)
 
-    for node in polygon:
-        if (node[x] > otu_level):
-            otu_level = node[x]
-        if (node[x] < root_level):
-            root_level = node[x]
-    
     # we need to make sure we start with the last thing in polygon
     new_polygon = []
-    new_polygon.append(polygon.pop())
+    new_polygon.append(polygon.pop(0))
     new_polygon.append(polygon.pop(0))
     new_polygon.append(polygon.pop(0))
     new_polygon.append(polygon.pop(0))
     new_polygon.append(polygon.pop(0))
     
-    tips = []    
     while len(polygon) >= 0:
         node4 = new_polygon.pop()
         node3 = new_polygon.pop()
@@ -756,7 +724,7 @@ def find_tree_tips(polygon):
         #     3 o---o 2
         if node1[x] == node2[x] and node0[x] < node1[x] and node3[x] < node2[x]:
             node2[y] = node1[y]
-            node3[y] = node1[y]            
+            node3[y] = node1[y]    
         
         #### normalize the tips
         # if node2[x] is greater than either node1[x] or node3[x]
@@ -770,7 +738,6 @@ def find_tree_tips(polygon):
 
                 node3 = [new_x, node2[y]]
                 node4 = [new_x, node4[y]]
-                tips.append(node2)
 
         #### FINALLY: append nodes
         new_polygon.append(node0)
@@ -782,20 +749,88 @@ def find_tree_tips(polygon):
             break
         
         new_polygon.append(polygon.pop(0))
-    # find the upper-rightmost tip and rotate so it's the first point.
-    tips.sort(cmp=lambda x,y: cmp(x[1], y[1]))
-    new_polygon = rotate_polygon(new_polygon, tips[0])
+    
     remove_duplicate_points(new_polygon)
+#     trim_polygon(new_polygon)
+    print(new_polygon)
     return new_polygon
 
-def rotate_polygon(new_polygon, start_node):
-    i = 0
-    while new_polygon[i] != start_node:
-        i += 1
-    new_polygon_front = new_polygon[:i]
-    new_polygon_back = new_polygon[i:]
-    return new_polygon_back + new_polygon_front
+# rotate the polygon so that it starts at the smallest x,y node
+def rotate_polygon(new_polygon):
+    smallest_node = new_polygon[0]
+    smallest_index = 0
+    i = 1
+    while (i < len(new_polygon)):
+        if new_polygon[i] < smallest_node:
+            smallest_node = new_polygon[i]
+            smallest_index = i
+        i = i + 1
+    print "smallest node is %s" % str(smallest_node)
+    new_polygon_front = new_polygon[:smallest_index]
+    new_polygon_back = new_polygon[smallest_index:]
+    new_polygon = new_polygon_back + new_polygon_front
+    return new_polygon
     
+def remove_duplicate_points(polygon):
+    index = 0
+    while index < (len(polygon)-2):
+        nodeA = polygon[index]
+        nodeB = polygon[index+1]
+        #### Remove duplicate or near-dup points.
+        # if the points are nearly identical, remove the second.
+        if (abs(nodeA[0] - nodeB[0]) < 2 and abs(nodeA[1] - nodeB[1]) < 2):
+            polygon.pop(index+1)
+            print "removed %s" % (str(nodeB))
+        index = index + 1
+        
+
+def trim_polygon(polygon):
+    # trim any extra nodes off the end:
+    while polygon[0] != polygon[len(polygon)-1]:
+        lastnode = polygon.pop()  
+        print "trimmed %s" % (str(lastnode))  
+    #pop one more:
+    lastnode = polygon.pop()  
+    print "finally trimmed %s" % (str(lastnode))  
+
+
+def find_otus(polygon):
+    # for convenience:
+    x = 0
+    y = 1
+#     print polygon
+
+    # the first node in the polygon is the upper-rightmost tip
+    global points
+    points = []
+    polygon.insert(0,polygon[len(polygon)-1])
+    
+    # we need to make sure we start with the last thing in polygon
+    new_polygon = []
+    new_polygon.append(polygon.pop())
+    new_polygon.append(polygon.pop(0))
+    new_polygon.append(polygon.pop(0))
+
+    while len(polygon) >= 0:
+        node2 = new_polygon.pop()
+        node1 = new_polygon.pop()
+        node0 = new_polygon.pop()
+
+        if (node1[x] > node2[x]) and (node1[x] > node0[x]):
+            points.append(node1)
+#             print node1
+
+        #### FINALLY: append nodes
+        new_polygon.append(node0)
+        new_polygon.append(node1)
+        new_polygon.append(node2)
+        if len(polygon) == 0:
+            break
+        
+        new_polygon.append(polygon.pop(0))
+    new_polygon.pop(0)
+#     print new_polygon
+    return new_polygon
 
 def path_to_polygon(path):
     polygon = []
