@@ -346,9 +346,9 @@ def polygon_to_lines(polygon):
         line = [last_node[0], last_node[1], node[0], node[1]]
         # don't add zero-length lines
         if (line[0] == line[2]) and (line[1] == line[3]):
-        	continue
+            continue
         else:
-			lines.append(line)
+            lines.append(line)
         last_node = node
 
     horiz_line_set = set()
@@ -583,6 +583,9 @@ def straighten_polygon(polygon):
         is_straight = False
         is_right = False
         is_tip = False
+        is_dup = False
+        if (nodes[2][x] == nodes[3][x]) and (nodes[2][y] == nodes[3][y]):
+            is_dup = True
         if (nodes[1][x] == nodes[2][x]): # if first two are vertical:
             if (nodes[3][x] == nodes[2][x]):
                 # vertical line
@@ -614,9 +617,13 @@ def straighten_polygon(polygon):
             elif (nodes[1][x] == nodes[2][x]):
                 # right angle
                 is_right = True
-        
-        if is_straight or is_right or is_tip:
+
+        if is_dup:
+            remove_index_node = True
+        elif is_right or is_tip:
             remove_index_node = False
+        elif is_straight:
+            remove_index_node = True
         else: 
             res = ""
             # law of cosines:
@@ -631,7 +638,7 @@ def straighten_polygon(polygon):
             
             theta = math.acos((a2 + b2 - c2)/(2*math.sqrt(a2*b2)))
             # is their angle really flat
-            if 180 - math.degrees(theta) < 45:
+            if 180 - math.degrees(theta) < 30:
                 remove_index_node = True
                 res = "basically straight"
             
