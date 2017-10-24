@@ -750,6 +750,31 @@ def remove_duplicate_points(polygon):
                 changes_made = True
             index = index + 1
         
+def straighten_horizontal_lines(polygon):
+    index = 2
+    start_node = polygon[0]
+    y = 1
+    wraparound = 5
+    polygon.extend(polygon[0:wraparound-1])
+    while (polygon[index] != start_node):
+        # we're looking at an array of nodes: nodes[2] is equivalent to polygon[index]
+        nodes = polygon[index-2:index+3]
+
+        # look at the y-values of these: are they on a horizontal line?
+        average_y = (nodes[0][y] + nodes[1][y] + nodes[2][y] + nodes[3][y] + nodes[4][y]) / 5
+        print "straightening along %s: looking at %s" % (average_y, str(nodes))
+        horizontal = True
+        for i in range(5):
+            if (nodes[i][y] - average_y) > 5:
+                horizontal = False
+
+        if horizontal:
+            print "straight horizontal line along %s" % str(average_y)
+            for i in range(5):
+                nodes[i][y] = average_y
+            print "straightened:  %s" % str(nodes)
+        # end loop by incrementing index
+        index = index + 1
 
 def trim_polygon(polygon):
     # trim any extra nodes off the end:
