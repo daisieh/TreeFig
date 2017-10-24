@@ -662,79 +662,59 @@ def straighten_polygon(polygon):
     return
     
 def find_tree_tips(polygon):
+    print "pointifying tips of polygon"
+    rotate_polygon(polygon)
+    changes_made = False
     # for convenience:
     x = 0
     y = 1
-
-    # the first node in the polygon is the upper-rightmost tip
     global points
-#     points = []
-    print(polygon)
-    print len(polygon)
-#     polygon.insert(0,polygon.pop())
-
+    points = []
+    wraparound = 5
     # add a few redundant points to make sure we wrap around the polygon:
-    polygon.extend(polygon[0:3])
-    print(polygon)
+    polygon.extend(polygon[0:wraparound-1])
+#     print "starting as: %s " % str(polygon)
+    start_node = polygon[0]
+    index = 2
+    while (polygon[index] != start_node):
+        # we're looking at an array of nodes: nodes[2] is equivalent to polygon[index]
+        nodes = polygon[index-2:index+3]
+        
+        remove_index_node = False
+        
+        is_tip = False
+        
+        # tips can either already be pointy or be blunt.
+        
+        # if nodes[0] and nodes[1] increases in x, we're looking for leaf tips.
+        if nodes[1][x] > nodes[0][x]:
+            print "examining %s" % str(nodes)
+            # a tip has to have the y vals of nodes[2] be greater than that of nodes[1]
+            if nodes[2][y] > nodes[1][y]:
+                print "looking for tip in %s" % str(nodes)
+                # if nodes[2] goes back (has smaller x than nodes[1]), it's a pointy tip. Leave it alone.
+                if nodes[2][x] < nodes[1][x]:
+                    print "pointy tip at %s" % str(nodes[1])
+                    remove_index_node = False
+                # if nodes[2] still increases in x but nodes[3] is smaller, it's a blunt tip: remove nodes[2], the index node.
+                elif nodes[3][x] < nodes[1][x] and nodes[2][x] > nodes[1][x]:
+                    remove_index_node = True
 
-    # we need to make sure we start with the last thing in polygon
-    new_polygon = []
-    new_polygon.append(polygon.pop(0))
-    new_polygon.append(polygon.pop(0))
-    new_polygon.append(polygon.pop(0))
-    new_polygon.append(polygon.pop(0))
-    new_polygon.append(polygon.pop(0))
+        if remove_index_node:
+            # remove node 1 (which is polygon[index-1]), don't increment:
+            print "looking at %s" % str(nodes)
+            print "removing node %s" % str(nodes[1])
+            polygon.pop(index-1)
+            index = index - 1
+            changes_made = True
+
+        # end loop by incrementing index
+        index = index + 1
     
-    while len(polygon) >= 0:
-        node4 = new_polygon.pop()
-        node3 = new_polygon.pop()
-        node2 = new_polygon.pop()
-        
-        if (node3 == node2):
-            node2 = new_polygon.pop()
-                
-        node1 = new_polygon.pop()
-        if len(new_polygon) > 0:
-            node0 = new_polygon.pop()
-        else:
-            node0 = polygon.pop()
-            
-        #### some tips might be blunted: make them pointy.
-        #     0 o---o 1
-        #           |
-        #     3 o---o 2
-        if node1[x] == node2[x] and node0[x] < node1[x] and node3[x] < node2[x]:
-            node2[y] = node1[y]
-            node3[y] = node1[y]    
-        
-        #### normalize the tips
-        # if node2[x] is greater than either node1[x] or node3[x]
-        if (node1[y] == node2[y]) and (node2[y] == node3[y]):
-            if ((node3[x] < node2[x]) and (node1[x] < node2[x])):
-                new_x = node1[x]
-                if (node3[x] < node1[x]):
-                    new_x = node3[x]
-                node0 = [new_x, node0[y]]
-                node1 = [new_x, node2[y]]
-
-                node3 = [new_x, node2[y]]
-                node4 = [new_x, node4[y]]
-
-        #### FINALLY: append nodes
-        new_polygon.append(node0)
-        new_polygon.append(node1)
-        new_polygon.append(node2)
-        new_polygon.append(node3)
-        new_polygon.append(node4)
-        if len(polygon) == 0:
-            break
-        
-        new_polygon.append(polygon.pop(0))
-    
-    remove_duplicate_points(new_polygon)
-#     trim_polygon(new_polygon)
-    print(new_polygon)
-    return new_polygon
+    trim_polygon(polygon)
+    rotate_polygon(polygon)
+#     print "ending as: %s " % str(polygon)
+    return
 
 # rotate the polygon so that it starts at the smallest x,y node
 def rotate_polygon(polygon):
