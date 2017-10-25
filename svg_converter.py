@@ -712,7 +712,8 @@ def straighten_polygon(polygon):
         straighten_polygon(polygon)
 #     print "ending as: %s " % str(polygon)
     return
-    
+
+
 def find_tree_tips(polygon):
     print "pointifying tips of polygon"
     extend_polygon(polygon)
@@ -736,23 +737,23 @@ def find_tree_tips(polygon):
         # tips can either already be pointy or be blunt.
         
         # if nodes[0] and nodes[1] increases in x, we're looking for leaf tips.
-        if nodes[1][x] > nodes[0][x]:
+        if nodes[1][x] >= nodes[0][x]:
             print "  examining %s" % str(nodes)
             # a tip has to have the y vals of nodes[2] be greater than that of nodes[1]
-            if nodes[2][y] > nodes[1][y]:
+            if nodes[2][y] <= nodes[1][y]:
                 print "    looking for tip in %s" % str(nodes)
                 # if nodes[2] goes back (has smaller x than nodes[1]), it's a pointy tip. Leave it alone.
                 if nodes[2][x] < nodes[1][x]:
                     print "    pointy tip at %s" % str(nodes[1])
                     remove_index_node = False
                 # if nodes[2] still increases in x but nodes[3] is smaller, it's a blunt tip: remove nodes[2], the index node.
-                elif nodes[3][x] < nodes[1][x] and nodes[2][x] > nodes[1][x]:
+                elif nodes[3][x] <= nodes[2][x] <= nodes[1][x]:
                     remove_index_node = True
 
         if remove_index_node:
             # remove node 1 (which is polygon[index-1]), don't increment:
-            print "  looking at %s" % str(nodes)
-            print "    removing node %s" % str(nodes[1])
+            print "    looking at %s" % str(nodes)
+            print "      removing node %s" % str(nodes[1])
             polygon.pop(index-1)
             index = index - 1
             changes_made = True
