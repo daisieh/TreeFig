@@ -112,6 +112,7 @@ def main():
             node[1] = node[1] * scaling
         straighten_horizontal_lines(treepath)
         straighten_polygon(treepath)
+        # pointify_tips(treepath)
         otus.extend(find_otus(treepath))
 
         # for node in treepath:
@@ -737,7 +738,7 @@ def straighten_polygon(polygon):
     return
 
 
-def find_tree_tips(polygon):
+def pointify_tips(polygon):
     print "pointifying tips of polygon"
     extend_polygon(polygon)
     changes_made = False
@@ -746,7 +747,6 @@ def find_tree_tips(polygon):
     y = 1
     global points
     points = []
-    print "  starting as: %s " % str(polygon)
     start_node = polygon[0]
     index = 2
     while (polygon[index] != start_node):
@@ -754,9 +754,7 @@ def find_tree_tips(polygon):
         nodes = polygon[index-2:index+3]
         
         remove_index_node = False
-        
-        is_tip = False
-        
+
         # tips can either already be pointy or be blunt.
         
         # if nodes[0] and nodes[1] increases in x, we're looking for leaf tips.
