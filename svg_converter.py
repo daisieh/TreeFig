@@ -208,6 +208,20 @@ def main():
 #     outf.close()
 #     print "reprinted raw svg"
 
+
+def find_node_distance(treepath):
+    otus = find_otus(treepath)
+    otus.sort(key=lambda r: r[1])
+    print str(otus)
+    shortest_distance = otus[1][1] - otus[0][1]
+    current_node = otus.pop(0)
+    while len(otus) > 0:
+        if otus[0][1] - current_node[1] < shortest_distance:
+            shortest_distance = otus[0][1] - current_node[1]
+        current_node = otus.pop(0)
+    return shortest_distance
+
+
 def tree_to_nexus(otus, nodes, edges):
     otudict = {}
     nodedict = {}
