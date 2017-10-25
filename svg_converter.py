@@ -840,7 +840,9 @@ def straighten_horizontal_lines(polygon):
         index = index + 1
     trim_polygon(polygon)
 
+
 def trim_polygon(polygon):
+    remove_duplicate_points(polygon)
     print "trimming polygon: starts as %s, ends as %s" %(polygon[:3],polygon[len(polygon)-10:])
     # trim any extra nodes off the end:
     while polygon[0] != polygon[len(polygon)-1]:
@@ -851,10 +853,12 @@ def trim_polygon(polygon):
     print "finally trimmed %s" % (str(lastnode))
     rotate_polygon(polygon)
 
+
 def extend_polygon(polygon):
     rotate_polygon(polygon)
-    print "extending polygon: starts as %s, ends as %s" %(polygon[:3],polygon[len(polygon)-10:])
     polygon.extend(polygon[0:4])
+    print "extending polygon: starts as %s, ends as %s" %(polygon[:3],polygon[len(polygon)-10:])
+
 
 def find_otus(polygon):
     # for convenience:
