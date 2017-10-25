@@ -864,39 +864,37 @@ def find_otus(polygon):
     # for convenience:
     x = 0
     y = 1
-#     print polygon
-
+    new_polygon = list(polygon)
+    rotate_polygon(new_polygon)
+    polygon[:] = []
     # the first node in the polygon is the upper-rightmost tip
-    global points
-    points = []
-    polygon.insert(0,polygon[len(polygon)-1])
+    otus = []
+    new_polygon.insert(0,new_polygon[len(new_polygon)-1])
     
     # we need to make sure we start with the last thing in polygon
-    new_polygon = []
-    new_polygon.append(polygon.pop())
-    new_polygon.append(polygon.pop(0))
-    new_polygon.append(polygon.pop(0))
+    polygon.append(new_polygon.pop())
+    polygon.append(new_polygon.pop(0))
+    polygon.append(new_polygon.pop(0))
 
-    while len(polygon) >= 0:
-        node2 = new_polygon.pop()
-        node1 = new_polygon.pop()
-        node0 = new_polygon.pop()
+    while len(new_polygon) >= 0:
+        node2 = polygon.pop()
+        node1 = polygon.pop()
+        node0 = polygon.pop()
 
         if (node1[x] > node2[x]) and (node1[x] > node0[x]):
-            points.append(node1)
-#             print node1
+            otus.append(node1)
 
         #### FINALLY: append nodes
-        new_polygon.append(node0)
-        new_polygon.append(node1)
-        new_polygon.append(node2)
-        if len(polygon) == 0:
+        polygon.append(node0)
+        polygon.append(node1)
+        polygon.append(node2)
+        if len(new_polygon) == 0:
             break
         
-        new_polygon.append(polygon.pop(0))
-    new_polygon.pop(0)
-#     print new_polygon
-    return new_polygon
+        polygon.append(new_polygon.pop(0))
+    polygon.pop(0)
+    return otus
+
 
 def path_to_polygon(path):
     polygon = []
