@@ -23,6 +23,7 @@ root_level = 0
 
 points = []
 
+
 def main():
     global points
     filename = sys.argv[1]
@@ -90,15 +91,14 @@ def main():
             otherpaths.append(path)
             boxpaths.append(box)
 
-    boxpaths = process_boxpaths(boxpaths)
-    i = 0
-    for box in boxpaths:
-        path = {}
-        path['@d'] = nodes_to_path(box)
-        val = i%256
-        i = i+10
-        path['@style'] = "fill:#00DD%x; stroke:#EEEEEE; stroke-width:1" % val
-        otherpaths.append(path)
+    # textboxes = process_boxpaths(boxpaths)
+    # for bound in textboxes:
+    #     i = 0
+    #     otherpaths.append({'@d': nodes_to_path(bound['bounds']), '@style': "stroke:none; fill:#CCCCCC; stroke-width:0"})
+    #     for box in bound['members']:
+    #         val = i%256
+    #         i = i+10
+    #         otherpaths.append({'@d':nodes_to_path(box), '@style': ("stroke:#00DD%x; fill:none; stroke-width:1" % val)})
 
     segments = []
     rawtreepaths = []
@@ -291,20 +291,21 @@ def parse_transform(transform):
             scale_height = float(scalematcher.group(2))
 
 
-def process_boxpaths(boxpaths):
-    resultpaths = []
+def process_boxpaths(input_paths):
+    boxpaths = list(input_paths)
+    concat_boxes = []
     # sort boxes by y:
     boxpaths.sort(key=lambda r: r[0][1])
     working_boxes = []
     # print "starting %s,%s" % (str(boxpaths[0]),str(boxpaths[1]))
     while len(boxpaths) > 0:
         if len(boxpaths) == 1:
-            resultpaths.append(boxpaths.pop(0))
+            concat_boxes.append(boxpaths.pop(0))
             boxpaths = working_boxes
             working_boxes = []
             # print "  finished a box %s" % str(resultpaths)
             if len(boxpaths) == 0:
-                return resultpaths
+                break
         current_box = boxpaths.pop(0)
         comparison_box = boxpaths.pop(0)
         # print "  comparing boxes %s to %s" % (str(current_box),str(comparison_box))
@@ -317,8 +318,17 @@ def process_boxpaths(boxpaths):
             working_boxes.append(comparison_box)
         # break
 
-    # print "boxpaths %s" % str(boxpaths)
-    return resultpaths
+    result_paths = []
+    for box in concat_boxes:
+        result = {}
+        result['bounds'] = box
+        result['members'] = []
+        for subbox in input_paths:
+            if compare_line_segments([box[0][1],box[1][1]],[subbox[0][1],subbox[1][1]]):
+                result['members'].append(subbox)
+        result['members'].sort(key=lambda r: r[0])
+        result_paths.append(result)
+    return result_paths
 
 
 def merge_boxes(box1, box2):
