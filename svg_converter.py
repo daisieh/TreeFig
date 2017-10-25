@@ -125,9 +125,10 @@ def main():
         path['@style'] = "fill:none; stroke:#FF0000; stroke-width:1"
         rawtreepaths.append(path) 
 
-    segments.extend(polygon_to_lines(treepath))
+        segments.extend(polygon_to_lines(treepath))
     # generate raw svg first-pass, in case something fails during tree building:
-    circles.extend(nodes_to_circles(points))
+    print "otus " + str(otus)
+    circles.extend(nodes_to_circles(otus))
     lines = []
     lines.extend(segments_to_lines(segments, 'blue', 4))
     svgdict = {}
@@ -408,7 +409,8 @@ def segments_to_lines(segments, color, width):
         lines.append({'@x1':str(seg[0]), '@y1':str(seg[1]), '@x2':str(seg[2]), '@y2':str(seg[3]), '@stroke-width':str(width), '@stroke':color})
     return lines
 
-def polygon_to_lines(polygon):   
+
+def polygon_to_lines(polygon):
     # the first node in polygon is the upper-rightmost tip; append the corner preceding it so that we can process the tip correctly.
     polygon.insert(0,polygon[len(polygon)-1])
     polygon.insert(0,polygon[len(polygon)-2])
@@ -434,8 +436,8 @@ def polygon_to_lines(polygon):
     vert_line_set = set()
     for line in lines:
         # sanity check lines:
-        if (math.fabs(line[2]-line[0]) < 2) and (math.fabs(line[3]-line[1]) < 2):
-            print "hey, weird line %s" % line
+        # if (math.fabs(line[2]-line[0]) < 2) and (math.fabs(line[3]-line[1]) < 2):
+            # print "hey, weird line %s" % line
     
         forward_line = (line[0],line[1],line[2],line[3])
         if (line[0] == line[2]): # vertical lines
