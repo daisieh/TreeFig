@@ -640,7 +640,6 @@ def set_otu_and_root_level(polygon):
 # remove all in-between singletons from a polygon
 def straighten_polygon(polygon):
     print "straightening polygon"
-    remove_duplicate_points(polygon)
     changes_made = False
     # for convenience:
     x = 0
@@ -654,55 +653,51 @@ def straighten_polygon(polygon):
     while (polygon[index] != start_node):
         # we're looking at an array of nodes: nodes[2] is equivalent to polygon[index]
         nodes = polygon[index-2:index+3]
-        print "looking at %s" % str(nodes)
-        
+        message = "looking at %s\n" % str(nodes)
+
         remove_index_node = False
         
         is_straight = False
         is_right = False
         is_tip = False
-        is_dup = False
-        if (nodes[2][x] == nodes[3][x]) and (nodes[2][y] == nodes[3][y]):
-            is_dup = True
         if (nodes[1][x] == nodes[2][x]): # if first two are vertical:
             if (nodes[3][x] == nodes[2][x]):
-                # vertical line
+                message += "  vertical line "
                 is_straight = True
             elif (nodes[3][y] == nodes[2][y]):
-                # right angle
+                message += "  right angle\n"
                 is_right = True
         elif (nodes[1][y] == nodes[2][y]): # if first two are horizontal:
             if (nodes[3][y] == nodes[2][y]):
-                # horiz line
+                message += "  horiz line1 "
                 is_straight = True
+                if (nodes[3][x] <= nodes[2][x]) and (nodes[1][x] <= nodes[2][x]):
+                    message += "  tip1 " + str(nodes[2])
+                    is_tip = True
             elif (nodes[3][x] == nodes[2][x]):
-                # right angle
+                message += "  right angle\n"
                 is_right = True
-            elif (nodes[3][x] < nodes[2][x]) and (nodes[1][x] < nodes[2][x]):
-                # tip
-                is_tip = True
         elif (nodes[2][x] == nodes[3][x]): # if second two are vertical:
             if (nodes[1][x] == nodes[2][x]):
-                # vertical line
+                message += "  vertical line "
                 is_straight = True
             elif (nodes[1][y] == nodes[2][y]):
-                # right angle
+                message += "  right angle\n"
                 is_right = True
         elif (nodes[3][y] == nodes[2][y]): # if second two are horizontal:
             if (nodes[1][y] == nodes[2][y]):
-                # horiz line
+                message += "  horiz line2 "
                 is_straight = True
             elif (nodes[1][x] == nodes[2][x]):
-                # right angle
+                message += "  right angle\n"
                 is_right = True
 
-        if is_dup:
-            remove_index_node = True
-        elif is_right or is_tip:
+        if is_right or is_tip:
             remove_index_node = False
-        elif is_straight:
+        elif is_straight and not is_tip:
+            message += "  is straight\n"
             remove_index_node = True
-        else: 
+        else:
             res = ""
             # law of cosines:
             # we want the angle internal to node1.
@@ -721,11 +716,11 @@ def straighten_polygon(polygon):
                 remove_index_node = True
                 res = "basically straight"
             
-            print "theta is %f: %s" % (math.degrees(theta), res)
-            
+            message += "  theta is %f: %s\n" % (math.degrees(theta), res)
+
         if remove_index_node:
             # remove node 2 (which is polygon[index]), don't increment:
-            print "removing node %s" % str(nodes[2])
+            print message + "  removing node %s" % str(nodes[2])
             polygon.pop(index)
             index = index - 1
             changes_made = True
