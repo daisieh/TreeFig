@@ -102,12 +102,21 @@ def main():
 
     segments = []
     rawtreepaths = []
-    rawpolygons = []   
+    rawpolygons = []
+    otus = []
     for treepath in treepaths:
+        node_distance = find_node_distance(treepath)
+        scaling = 50.0/node_distance
+        print "node distance is %d, scaling is %d" % (node_distance, scaling)
+        for node in treepath:
+            node[1] = node[1] * scaling
+        straighten_horizontal_lines(treepath)
         straighten_polygon(treepath)
-#         treepath = find_tree_tips(treepath)
-        treepath = find_otus(treepath)
-        
+        otus.extend(find_otus(treepath))
+
+        # for node in treepath:
+        #     node[1] = node[1] / scaling
+
         # this path is for the cleaned-up lines
         path = {}
         path['@d'] = nodes_to_path(treepath)
