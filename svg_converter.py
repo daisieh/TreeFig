@@ -610,7 +610,6 @@ def set_otu_and_root_level(polygon):
 # remove all in-between singletons from a polygon
 def straighten_polygon(polygon):
     print "straightening polygon"
-    rotate_polygon(polygon)
     remove_duplicate_points(polygon)
     changes_made = False
     # for convenience:
@@ -618,9 +617,7 @@ def straighten_polygon(polygon):
     y = 1
     global points
     points = []
-    wraparound = 5
-    # add a few redundant points to make sure we wrap around the polygon:
-    polygon.extend(polygon[0:wraparound-1])
+    extend_polygon(polygon)
 #     print "starting as: %s " % str(polygon)
     start_node = polygon[0]
     index = 2
@@ -688,6 +685,7 @@ def straighten_polygon(polygon):
             c2 = ((nodes[3][x]-nodes[1][x]) * (nodes[3][x]-nodes[1][x])) + ((nodes[3][y]-nodes[1][y]) * (nodes[3][y]-nodes[1][y]))
             
             theta = math.acos((a2 + b2 - c2)/(2*math.sqrt(a2*b2)))
+
             # is their angle really flat
             if 180 - math.degrees(theta) < 30:
                 remove_index_node = True
@@ -706,7 +704,6 @@ def straighten_polygon(polygon):
         index = index + 1
     
     trim_polygon(polygon)
-    rotate_polygon(polygon)
     if changes_made:
         straighten_polygon(polygon)
 #     print "ending as: %s " % str(polygon)
@@ -714,17 +711,14 @@ def straighten_polygon(polygon):
     
 def find_tree_tips(polygon):
     print "pointifying tips of polygon"
-    rotate_polygon(polygon)
+    extend_polygon(polygon)
     changes_made = False
     # for convenience:
     x = 0
     y = 1
     global points
     points = []
-    wraparound = 5
-    # add a few redundant points to make sure we wrap around the polygon:
-    polygon.extend(polygon[0:wraparound-1])
-#     print "starting as: %s " % str(polygon)
+    print "  starting as: %s " % str(polygon)
     start_node = polygon[0]
     index = 2
     while (polygon[index] != start_node):
@@ -739,13 +733,13 @@ def find_tree_tips(polygon):
         
         # if nodes[0] and nodes[1] increases in x, we're looking for leaf tips.
         if nodes[1][x] > nodes[0][x]:
-            print "examining %s" % str(nodes)
+            print "  examining %s" % str(nodes)
             # a tip has to have the y vals of nodes[2] be greater than that of nodes[1]
             if nodes[2][y] > nodes[1][y]:
-                print "looking for tip in %s" % str(nodes)
+                print "    looking for tip in %s" % str(nodes)
                 # if nodes[2] goes back (has smaller x than nodes[1]), it's a pointy tip. Leave it alone.
                 if nodes[2][x] < nodes[1][x]:
-                    print "pointy tip at %s" % str(nodes[1])
+                    print "    pointy tip at %s" % str(nodes[1])
                     remove_index_node = False
                 # if nodes[2] still increases in x but nodes[3] is smaller, it's a blunt tip: remove nodes[2], the index node.
                 elif nodes[3][x] < nodes[1][x] and nodes[2][x] > nodes[1][x]:
@@ -753,8 +747,8 @@ def find_tree_tips(polygon):
 
         if remove_index_node:
             # remove node 1 (which is polygon[index-1]), don't increment:
-            print "looking at %s" % str(nodes)
-            print "removing node %s" % str(nodes[1])
+            print "  looking at %s" % str(nodes)
+            print "    removing node %s" % str(nodes[1])
             polygon.pop(index-1)
             index = index - 1
             changes_made = True
@@ -763,7 +757,6 @@ def find_tree_tips(polygon):
         index = index + 1
     
     trim_polygon(polygon)
-    rotate_polygon(polygon)
 #     print "ending as: %s " % str(polygon)
     return
 
@@ -797,45 +790,52 @@ def remove_duplicate_points(polygon):
             # if the points are nearly identical, remove the second.
             if (abs(nodeA[0] - nodeB[0]) < 2 and abs(nodeA[1] - nodeB[1]) < 2):
                 polygon.pop(index+1)
-                print "removed %s" % (str(nodeB))
+                print "  removed %s" % (str(nodeB))
                 changes_made = True
             index = index + 1
         
 def straighten_horizontal_lines(polygon):
+    print "straightening horizontal lines"
+    extend_polygon(polygon)
     index = 2
     start_node = polygon[0]
     y = 1
-    wraparound = 5
-    polygon.extend(polygon[0:wraparound-1])
     while (polygon[index] != start_node):
         # we're looking at an array of nodes: nodes[2] is equivalent to polygon[index]
         nodes = polygon[index-2:index+3]
 
         # look at the y-values of these: are they on a horizontal line?
         average_y = (nodes[0][y] + nodes[1][y] + nodes[2][y] + nodes[3][y] + nodes[4][y]) / 5
-        print "straightening along %s: looking at %s" % (average_y, str(nodes))
+        print "  straightening along %s: looking at %s" % (average_y, str(nodes))
         horizontal = True
         for i in range(5):
             if (nodes[i][y] - average_y) > 5:
                 horizontal = False
 
         if horizontal:
-            print "straight horizontal line along %s" % str(average_y)
+            print "  straight horizontal line along %s" % str(average_y)
             for i in range(5):
                 nodes[i][y] = average_y
-            print "straightened:  %s" % str(nodes)
+            print "  straight horizontal line along %s, straightened:  %s" % (average_y, str(nodes))
         # end loop by incrementing index
         index = index + 1
+    trim_polygon(polygon)
 
 def trim_polygon(polygon):
+    print "trimming polygon: starts as %s, ends as %s" %(polygon[:3],polygon[len(polygon)-10:])
     # trim any extra nodes off the end:
     while polygon[0] != polygon[len(polygon)-1]:
         lastnode = polygon.pop()  
-        print "trimmed %s" % (str(lastnode))  
-    #pop one more:
-    lastnode = polygon.pop()  
-    print "finally trimmed %s" % (str(lastnode))  
+        print "  trimmed %s" % (str(lastnode))
+    # #pop one more:
+    lastnode = polygon.pop()
+    print "finally trimmed %s" % (str(lastnode))
+    rotate_polygon(polygon)
 
+def extend_polygon(polygon):
+    rotate_polygon(polygon)
+    print "extending polygon: starts as %s, ends as %s" %(polygon[:3],polygon[len(polygon)-10:])
+    polygon.extend(polygon[0:4])
 
 def find_otus(polygon):
     # for convenience:
