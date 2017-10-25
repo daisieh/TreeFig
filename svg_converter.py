@@ -260,7 +260,58 @@ def parse_transform(transform):
         scale_width = float(scalematcher.group(1))
         if scalematcher.group(2) is not None:
             scale_height = float(scalematcher.group(2))
-            
+
+
+def process_boxpaths(boxpaths):
+    resultpaths = []
+    # sort boxes by y:
+    boxpaths.sort(key=lambda r: r[0][1])
+    working_boxes = []
+    # print "starting %s,%s" % (str(boxpaths[0]),str(boxpaths[1]))
+    while len(boxpaths) > 0:
+        if len(boxpaths) == 1:
+            resultpaths.append(boxpaths.pop(0))
+            boxpaths = working_boxes
+            working_boxes = []
+            # print "  finished a box %s" % str(resultpaths)
+            if len(boxpaths) == 0:
+                return resultpaths
+        current_box = boxpaths.pop(0)
+        comparison_box = boxpaths.pop(0)
+        # print "  comparing boxes %s to %s" % (str(current_box),str(comparison_box))
+        if compare_line_segments([current_box[0][1],current_box[1][1]],[comparison_box[0][1],comparison_box[1][1]]):
+            boxpaths.insert(0, merge_boxes(current_box, comparison_box))
+            # print "    %d boxes left" % len(boxpaths)
+        else:
+            boxpaths.insert(0, current_box)
+            # print "    %d boxes left" % len(boxpaths)
+            working_boxes.append(comparison_box)
+        # break
+
+    # print "boxpaths %s" % str(boxpaths)
+    return resultpaths
+
+
+def merge_boxes(box1, box2):
+    # print "  merging boxes %s to %s" % (str(box1), str(box2))
+    concat_points = box1 + box2
+    concat_points.sort(key=lambda r: r[1])
+    min_y = concat_points[0][1]
+    max_y = concat_points[len(concat_points)-1][1]
+    concat_points.sort(key=lambda r: r[0])
+    min_x = concat_points[0][0]
+    max_x = concat_points[len(concat_points)-1][0]
+    return [[min_x,min_y],[min_x,max_y],[max_x,max_y],[max_x,min_y]]
+
+
+
+def compare_line_segments(range1, range2):
+    if range1[0] <= range2[0] <= range1[1]:
+        return True
+    if range1[0] <= range2[1] <= range1[1]:
+        return True
+    return False
+
 def make_tree(segments):
     vert_lines = []
     horiz_lines = []
