@@ -801,22 +801,18 @@ def rotate_polygon(polygon):
     del polygon[:smallest_index]
         
 def remove_duplicate_points(polygon):
-    index = 0
-    changes_made = True
-    while changes_made:
-        print "removing dups"
-        changes_made = False
-        while index < (len(polygon)-2):
-            nodeA = polygon[index]
-            nodeB = polygon[index+1]
-            #### Remove duplicate or near-dup points.
-            # if the points are nearly identical, remove the second.
-            if (abs(nodeA[0] - nodeB[0]) < 2 and abs(nodeA[1] - nodeB[1]) < 2):
-                polygon.pop(index+1)
-                print "  removed %s" % (str(nodeB))
-                changes_made = True
-            index = index + 1
-        
+    print "removing dups in polygon: starts as %s, ends as %s" %(polygon[:3],polygon[len(polygon)-10:])
+    working_set = list(polygon)
+    polygon[:] = [working_set.pop(0)]
+    while len(working_set) > 2:
+        node1 = polygon[len(polygon) - 1]
+        node2 = working_set.pop(0)
+        if node1 != node2:
+            polygon.append(node2)
+            working_set.insert(0, node2)
+    print "done removing dups in polygon: starts as %s, ends as %s" %(polygon[:3],polygon[len(polygon)-10:])
+
+
 def straighten_horizontal_lines(polygon):
     print "straightening horizontal lines"
     extend_polygon(polygon)
