@@ -90,12 +90,16 @@ def main():
             otherpaths.append(path)
             boxpaths.append(box)
 
-#     for box in boxpaths:
-#         path = {}
-#         path['@d'] = nodes_to_path(box)
-#         path['@style'] = "fill:#00DD00; stroke:#EEEEEE; stroke-width:1"
-#         otherpaths.append(path)
-    
+    boxpaths = process_boxpaths(boxpaths)
+    i = 0
+    for box in boxpaths:
+        path = {}
+        path['@d'] = nodes_to_path(box)
+        val = i%256
+        i = i+10
+        path['@style'] = "fill:#00DD%x; stroke:#EEEEEE; stroke-width:1" % val
+        otherpaths.append(path)
+
     segments = []
     rawtreepaths = []
     rawpolygons = []   
